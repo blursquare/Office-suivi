@@ -11633,9 +11633,23 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
    (étude 31/10 : « présentation plus visuelle avec l'aperçu à droite du PDF »). */
 .dc-choisir { display: inline-flex; }
 .dc-choisir .dc-fichier { display: none; }
-.dc-mise-en-page { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Trois colonnes (étude 31/10 : « les aperçus de petites pages à droite, les uns sur les autres, dans une sidebar ») :
+   pièces · pièce choisie et sa page en grand · colonne des vignettes. */
+.dc-mise-en-page { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr) 136px; gap: 16px; align-items: start; }
+.dc-accueil { display: flex; flex-direction: column; gap: 24px; max-width: 960px; margin: 0 auto; width: 100%; }
+.dc-depot { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; border: 2px dashed var(--line); border-radius: var(--rayon-carte); background: var(--paper-card); text-align: center; cursor: pointer; }
+.dc-depot.survol { border-color: var(--focus); background: var(--paper-sunk); }
+.dc-depot-icone { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--rayon-pilule); background: var(--paper-sunk); color: var(--focus); }
+.dc-depot-icone .icone { width: 24px; height: 24px; }
+.dc-depot-titre { font-size: var(--texte-xl); font-weight: 500; }
+.dc-depot-sous { font-size: var(--texte-s); color: var(--muted); }
+.dc-accueil-dossiers { display: flex; flex-direction: column; gap: 12px; }
+.dc-accueil-recherche { width: 100%; }
+select.dc-dossier-choix { max-width: 320px; }
 .dc-gauche { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.dc-droite { position: sticky; top: calc(12px + var(--decalage-onglets)); max-height: calc(100vh - 24px - var(--decalage-onglets)); overflow: auto; min-width: 0; padding: 12px; border-radius: var(--rayon-carte); background: var(--paper-card); border: var(--bord-carte); }
+.dc-centre, .dc-cote { position: sticky; top: calc(12px + var(--decalage-onglets)); max-height: calc(100vh - 24px - var(--decalage-onglets)); min-width: 0; padding: 12px; border-radius: var(--rayon-carte); background: var(--paper-card); border: var(--bord-carte); }
+.dc-centre { display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+.dc-cote { display: flex; flex-direction: column; gap: 8px; padding: 12px 8px; }
 .dc-resume { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
 .dc-a-verifier { color: var(--pret); }
 .dc-liste { display: flex; flex-direction: column; gap: 4px; }
@@ -11652,7 +11666,6 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .dc-piece-etat { flex: 0 0 auto; font-size: var(--texte-xs); }
 .dc-piece-etat.dc-rangee { color: var(--success); }
 .dc-piece-etat.dc-verifier { padding: 1px 6px; border-radius: var(--rayon-pilule); background: var(--pret-bg); color: var(--pret); font-weight: 600; }
-.dc-detail { display: flex; flex-direction: column; gap: 12px; }
 .dc-detail-tete { display: flex; align-items: center; gap: 8px; }
 .dc-detail-tete input.dc-detail-nom { font-size: var(--texte-l); font-weight: 500; }
 .dc-detail-champs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
@@ -11663,18 +11676,30 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .dc-grande-numero { font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
 .dc-grande-gestes { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .dc-grande-page { display: flex; justify-content: center; padding: 8px; border-radius: var(--rayon-m); background: var(--paper-sunk); }
-.dc-image-grande { display: block; width: auto; max-width: 100%; height: calc(100vh - 360px - var(--decalage-onglets)); min-height: 360px; aspect-ratio: 210 / 297; object-fit: contain; background: var(--blanc-fixe); box-shadow: var(--shadow-card); }
-.dc-vignettes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.dc-vignette { display: flex; flex-direction: column; gap: 2px; flex: 0 0 72px; }
+.dc-image-grande { display: block; width: auto; max-width: 100%; height: calc(100vh - 300px - var(--decalage-onglets)); min-height: 360px; aspect-ratio: 210 / 297; object-fit: contain; background: var(--blanc-fixe); box-shadow: var(--shadow-card); }
+.dc-vignettes { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 2px; }
+.dc-vignette { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
 .dc-vignette-image { padding: 0; border: 2px solid transparent; border-radius: var(--rayon-s); background: var(--paper-sunk); cursor: pointer; }
 .dc-vignette.actif .dc-vignette-image { border-color: var(--focus); }
 .dc-image { display: block; width: 100%; aspect-ratio: 210 / 297; object-fit: contain; background: var(--blanc-fixe); border-radius: var(--rayon-xs); }
 .dc-image-erreur { background: var(--paper-sunk); }
 .dc-hors .dc-image, .dc-grande-page.dc-hors .dc-image-grande { opacity: 0.4; }
-.dc-vignette-pied { display: flex; align-items: center; justify-content: space-between; font-size: var(--texte-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.dc-vignette-pied { display: flex; align-items: center; gap: 2px; font-size: var(--texte-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.dc-vignette-pied > span:first-child { margin-right: auto; }
 .dc-vignette-geste { display: inline-flex; padding: 2px; border: 0; border-radius: var(--rayon-xs); background: none; color: var(--muted); cursor: pointer; }
 .dc-vignette-geste:hover { background: var(--paper-sunk); color: var(--ink); }
-@media (max-width: 1000px) { .dc-mise-en-page { grid-template-columns: minmax(0, 1fr); } .dc-droite { position: static; max-height: none; } }
+@media (max-width: 1280px) {
+  .dc-mise-en-page { grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); }
+  .dc-cote { grid-column: 2; position: static; max-height: none; }
+  .dc-vignettes { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+  .dc-vignette { flex: 0 0 96px; }
+}
+@media (max-width: 1000px) {
+  .dc-mise-en-page { grid-template-columns: minmax(0, 1fr); }
+  .dc-cote { grid-column: auto; }
+  .dc-centre { position: static; max-height: none; }
+  .dc-image-grande { height: auto; width: 100%; min-height: 0; }
+}
 
 /* GIF des discussions (étude 30/10, client/150-gif.js) */
 .selecteur-gif { position: fixed; z-index: 60; width: min(360px, calc(100vw - 16px)); display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); box-shadow: var(--shadow-float); color: var(--ink); }

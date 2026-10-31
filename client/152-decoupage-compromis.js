@@ -203,28 +203,53 @@ function coteLibelleAnnexe(libelle) {
   return '';
 }
 
-// Nom d'une pièce rangée : « Libellé - annexe du compromis » ; le compromis lui-même « Compromis signé (sans les annexes) ».
-// Jamais le nom du fichier déposé dans le logiciel de l'agence (il porte souvent un nom de client). Pure.
-function nomPieceDecoupage(label, sorte) {
+// Nom du fichier d'une pièce : « … - annexe du compromis » quand elle vient d'un compromis, le libellé seul pour un document déposé
+// à part (DDT, annexes sans compromis). Jamais le nom du fichier déposé dans le logiciel de l'agence (il porte souvent un nom de
+// client). Pure.
+function nomPieceDecoupage(label, sorte, sansCompromis) {
   if (sorte === 'compromis') return 'Compromis signé (sans les annexes)';
   if (sorte === 'diagnostics') return 'Diagnostics techniques - tous les diagnostics';
-  return `${String(label || 'Annexe').replace(/[\\/:*?"<>|]+/g, '-').trim()} - annexe du compromis`;
+  const base = String(label || 'Annexe').replace(/[\\/:*?"<>|]+/g, '-').trim();
+  return sansCompromis ? base : `${base} - annexe du compromis`;
 }
 
-// Pièces à produire d'après le découpage : le compromis, une pièce par annexe (une par diagnostic pour un DDT en bloc), puis le
-// PDF unique de tous les diagnostics (pages de diagnostics dans l'ordre du document, pièces du diagnostiqueur comprises) dès
-// qu'il y a au moins un diagnostic. `pages` = textes des pages. Chaque pièce : { id, sorte, label, nom, pages, rubriques,
-// diagnostic, numero, inclure }. Pure.
-function piecesDecoupageCompromis(pages) {
+// Le document lu commence-t-il par un avant-contrat (compromis, promesse) ? Lu sur la première page qui a du texte. Pure.
+function documentEstAvantContrat(pages) {
+  const premiere = (pages || []).find(t => lignesPageDecoupage(t).length >= 1) || '';
+  if (/^(compromis|promesse)/.test(normaliserDecoupage(lignesPageDecoupage(premiere).slice(0, 3).join(' ')))) return true;
+  if (typeof typePieceScan === 'function' && typeof enTeteScan === 'function') {
+    const ty = typePieceScan(enTeteScan(premiere));
+    return !!ty && (ty.cle === 'avantContrat' || ty.cle === 'promesse');
+  }
+  return false;
+}
+
+// Pièces proposées pour un document (étude 31/10 : aussi « diagnostics, annexes sans compromis… ») :
+// - pages « Annexe n° » du logiciel de l'agence : découpé à ces pages (le compromis seul, s'il y en a un, puis une pièce par annexe) ;
+// - sinon un avant-contrat : proposé entier, rien n'est deviné ;
+// - sinon un dossier de diagnostics (au moins deux diagnostics en tête de page) : un PDF par diagnostic et un PDF de tous ;
+// - sinon une seule pièce, du type lu sur sa première page (ou sur le nom du fichier). Pure.
+// mode : 'compromis' (avec annexes), 'annexes' (annexes sans compromis), 'entier' (avant-contrat sans séparation),
+// 'diagnostics', 'document'.
+function piecesDecoupageCompromis(pages, options) {
+  const nomFichier = String((options && options.nomFichier) || '').replace(/\.pdf$/i, '');
   const dec = decouperPagesCompromis(pages);
   const pieces = [];
   const pagesDiag = [];
   const pagesDiagnostiqueur = [];
   let n = 0;
   const ajouter = (p) => { pieces.push(Object.assign({ id: 'p' + (++n), inclure: true }, p)); };
-  dec.segments.forEach(seg => {
+  let mode = 'compromis';
+  let segments = dec.segments;
+  if (!dec.separateurs) {
+    const seg = { sorte: 'annexe', numero: 0, libelle: '', fichier: nomFichier, pages: dec.segments[0].pages };
+    if (documentEstAvantContrat(pages)) mode = 'entier';
+    else { segments = [seg]; mode = repartirDiagnosticsAnnexe(seg, pages, '').length > 1 ? 'diagnostics' : 'document'; }
+  } else if (!dec.segments[0].pages.length) mode = 'annexes';
+  const sansCompromis = mode !== 'compromis' && mode !== 'entier';
+  segments.forEach(seg => {
     if (seg.sorte === 'compromis') {
-      ajouter({ sorte: 'compromis', label: 'Compromis signé', nom: nomPieceDecoupage('', 'compromis'), pages: seg.pages, rubriques: ['sru'], diagnostic: '', numero: 0, libelleLu: '' });
+      if (seg.pages.length) ajouter({ sorte: 'compromis', label: 'Compromis signé', nom: nomPieceDecoupage('', 'compromis'), pages: seg.pages, rubriques: ['sru'], diagnostic: '', numero: 0, libelleLu: '' });
       return;
     }
     const premiere = seg.pages.map(p => pages[p - 1]).find(t => lignesPageDecoupage(t).length >= 3) || '';
@@ -232,26 +257,27 @@ function piecesDecoupageCompromis(pages) {
     // Un bloc qui annonce plusieurs diagnostics en tête de pages est un DDT, quel que soit son libellé (« Attestation de mesurage »
     // de l'agence portait tout le dossier) : redécoupé.
     // Une pièce reconnue autrement (règlement, carnet d'entretien…) n'est jamais redécoupée : ses pages peuvent citer un diagnostic.
-    const parties = ty.label && !ty.diagnostic ? [{ diagnostic: '', pages: seg.pages }] : repartirDiagnosticsAnnexe(seg, pages, ty.diagnostic);
+    const parties = ty.label && !ty.diagnostic && mode !== 'diagnostics' ? [{ diagnostic: '', pages: seg.pages }] : repartirDiagnosticsAnnexe(seg, pages, ty.diagnostic);
     const estDiag = !!ty.diagnostic || parties.length > 1;
     if (estDiag) {
       parties.forEach(p => {
         pagesDiag.push(...p.pages);
         if (p.diagnostic === 'diagnostiqueur') { pagesDiagnostiqueur.push(...p.pages); return; } // seulement dans le PDF unique
         const d = diagnosticParCle(p.diagnostic) || diagnosticParCle('synthese');
-        ajouter({ sorte: 'diagnostic', label: d.label, nom: nomPieceDecoupage(d.label), pages: p.pages, rubriques: d.cle === 'erp' ? ['environnement', 'diagnostics', 'aae'] : ['diagnostics'], diagnostic: d.cle, numero: seg.numero, libelleLu: seg.libelle });
+        ajouter({ sorte: 'diagnostic', label: d.label, nom: nomPieceDecoupage(d.label, 'diagnostic', sansCompromis), pages: p.pages, rubriques: d.cle === 'erp' ? ['environnement', 'diagnostics', 'aae'] : ['diagnostics'], diagnostic: d.cle, numero: seg.numero, libelleLu: seg.libelle });
       });
       return;
     }
     let rubriques = ty.rubriques || [];
     if (ty.parPartie) { const c = coteLibelleAnnexe(seg.libelle); rubriques = c ? [c] : []; }
-    const label = ty.label || (seg.libelle ? seg.libelle.charAt(0).toUpperCase() + seg.libelle.slice(1) : `Annexe n°${seg.numero}`);
-    ajouter({ sorte: 'annexe', label, nom: nomPieceDecoupage(label), pages: seg.pages, rubriques, diagnostic: '', numero: seg.numero, libelleLu: seg.libelle, reconnu: !!ty.label });
+    const label = ty.label || (seg.libelle ? seg.libelle.charAt(0).toUpperCase() + seg.libelle.slice(1) : seg.numero ? `Annexe n°${seg.numero}` : 'Document');
+    ajouter({ sorte: 'annexe', label, nom: nomPieceDecoupage(label, 'annexe', sansCompromis), pages: seg.pages, rubriques, diagnostic: '', numero: seg.numero, libelleLu: seg.libelle, reconnu: !!ty.label });
   });
-  if (pagesDiag.length) {
+  // Le PDF de tous les diagnostics : seulement s'il y en a plus d'un (un diagnostic seul est déjà son PDF).
+  if (pagesDiag.length && pieces.filter(p => p.sorte === 'diagnostic').length + (pagesDiagnostiqueur.length ? 1 : 0) > 1) {
     ajouter({ sorte: 'diagnostics', label: 'Diagnostics techniques', nom: nomPieceDecoupage('', 'diagnostics'), pages: pagesDiag, rubriques: ['diagnostics'], diagnostic: '', numero: 0, libelleLu: '', pagesDiagnostiqueur });
   }
-  return { separateurs: dec.separateurs, gardes: dec.gardes, pieces };
+  return { separateurs: dec.separateurs, gardes: dec.gardes, mode, pieces };
 }
 
 // Ce que l'agent reçoit pour nommer une pièce (audit 0.411.0, H1) : le libellé de CLAIRE d'une pièce reconnue, sinon « Annexe n°N
@@ -346,8 +372,8 @@ var RUBRIQUES_DECOUPAGE = [
   ['construction', 'Construction'], ['comptabilite', 'Comptabilité'], ['pret', 'Comptabilité › Prêt']
 ];
 
-// choisie = pièce montrée dans l'aperçu, pageVue = page affichée en grand.
-var dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: 0, choisie: '', pageVue: 0, gardes: [] };
+// choisie = pièce montrée dans l'aperçu, pageVue = page affichée en grand, rotations = { page: quart de tour en degrés }.
+var dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: 0, choisie: '', pageVue: 0, gardes: [], rotations: {} };
 var dcNumeroPieceAjoutee = 0;
 
 function dcDossier() { return dossiers.find(x => x && x.id === dcEtat.dossierId) || null; }
@@ -368,7 +394,7 @@ function compromisCompletNas(d, fichiers) {
 async function dcChoisirDossier(id) {
   const d = dossiers.find(x => x && x.id === id);
   dcFermerApercu(dcEtat.source);
-  dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: dcEtat.jeton + 1, choisie: '', pageVue: 0, gardes: [] };
+  dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: dcEtat.jeton + 1, choisie: '', pageVue: 0, gardes: [], rotations: {} };
   if (!decoupagePossible(d)) { renderDecoupage(); return; }
   dcEtat.dossierId = d.id;
   if (!d.nasDossier) { dcEtat.message = 'Dossier non relié au NAS : choisissez le PDF du compromis signé.'; renderDecoupage(); return; }
@@ -392,11 +418,11 @@ async function dcChoisirDossier(id) {
 }
 
 // Lit le PDF page par page (texte seulement : les pages de séparation ont du texte, pas d'OCR) puis propose les pièces.
-async function dcLire(fichier, nom, jeton) {
+async function dcLire(fichier, nom, jeton, depose) {
   if (typeof pdfjsLib === 'undefined') throw new Error('lecteur PDF indisponible');
   const octets = new Uint8Array(await fichier.arrayBuffer());
   dcEtat.lecture = 'lecture';
-  dcEtat.message = 'Lecture du compromis…';
+  dcEtat.message = 'Lecture du document…';
   renderDecoupage();
   // pdf.js détache le tampon qu'on lui donne : une copie, l'original sert à pdf-lib.
   const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: octets.slice() }).promise;
@@ -410,29 +436,58 @@ async function dcLire(fichier, nom, jeton) {
     }
   } finally { try { pdf.destroy(); } catch (_) { /* déjà fermé */ } }
   if (jeton !== dcEtat.jeton) return;
-  const r = piecesDecoupageCompromis(pages);
+  const r = piecesDecoupageCompromis(pages, { nomFichier: nom || fichier.name || '' });
   dcFermerApercu(dcEtat.source);
-  dcEtat.source = { nom: nom || fichier.name || 'compromis.pdf', octets, images: new Map(), faites: new Map() };
+  dcEtat.source = { nom: nom || fichier.name || 'compromis.pdf', octets, images: new Map(), faites: new Map(), depose: !!depose };
   dcEtat.pages = pages;
   dcEtat.pieces = r.pieces.map(p => Object.assign({ saisie: saisieDepuisPagesDecoupage(p.pages), rubrique: (p.rubriques || [])[0] || '', rangee: '' }, p));
   dcEtat.separateurs = r.separateurs;
   dcEtat.gardes = r.gardes || [];
+  dcEtat.rotations = {};
+  dcEtat.mode = r.mode;
   dcEtat.choisie = dcEtat.pieces[0] ? dcEtat.pieces[0].id : '';
   dcEtat.pageVue = dcEtat.pieces[0] ? dcEtat.pieces[0].pages[0] : 0;
   dcEtat.lecture = 'lu';
-  dcEtat.message = r.separateurs
-    ? `${pages.length} pages · ${r.separateurs} annexe(s) repérée(s) par leurs pages de séparation.`
-    : `${pages.length} pages · aucune page « Annexe n° » : CLAIRE ne devine rien, le document entier est proposé. Corrigez les pages à la main.`;
+  dcEtat.message = messageLectureDecoupage(r, pages.length);
   renderDecoupage();
+}
+
+// Ce que CLAIRE a compris du document, en une phrase. Pure.
+function messageLectureDecoupage(r, total) {
+  const n = r.pieces.length;
+  if (r.mode === 'compromis') return `${total} pages · ${r.separateurs} annexe(s) repérée(s) par leurs pages de séparation.`;
+  if (r.mode === 'annexes') return `${total} pages · annexes sans compromis : ${r.separateurs} annexe(s) repérée(s) par leurs pages de séparation.`;
+  if (r.mode === 'diagnostics') return `${total} pages · dossier de diagnostics : ${n} pièce(s), un PDF par diagnostic et un PDF de tous.`;
+  if (r.mode === 'document') return `${total} pages · une seule pièce reconnue : coupez-la ou ajoutez des pièces si le document en réunit plusieurs.`;
+  return `${total} pages · aucune page « Annexe n° » : CLAIRE ne devine rien, le document entier est proposé. Coupez-le ou ajoutez des pièces à la main.`;
 }
 
 async function dcDeposerFichier(input) {
   const f = input && input.files && input.files[0];
   if (input) input.value = '';
-  if (!f || !dcEtat.dossierId) return;
+  dcLireDepose(f);
+}
+
+// Un PDF glissé sur la zone de dépôt de l'accueil.
+function dcDeposerGlisse(ev, zone) {
+  ev.preventDefault();
+  if (zone) zone.classList.remove('survol');
+  const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+  dcLireDepose(f);
+}
+
+// Un PDF déposé à la main (accueil ou « Autre PDF ») : sans vente choisie, les pièces se téléchargent ; la vente se choisit pour ranger.
+function dcLireDepose(f) {
+  if (!f) return;
+  if (dcEtat.range) { afficherToast('Rangement en cours : attendez qu’il soit fini.', 'OK', null); return; }
+  if (dcCorrectionsNonRangees()) { demanderConfirmation('Ouvrir ce document ? Les corrections faites à la main sur le découpage ouvert, pas encore rangées, seront perdues.', () => dcLireDeposeConfirme(f)); return; }
+  dcLireDeposeConfirme(f);
+}
+
+async function dcLireDeposeConfirme(f) {
   if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { afficherToast('Choisissez un PDF.', 'OK', null); return; }
   const jeton = ++dcEtat.jeton;
-  try { await dcLire(f, f.name, jeton); } catch (e) {
+  try { await dcLire(f, f.name, jeton, true); } catch (e) {
     if (jeton !== dcEtat.jeton) return;
     dcEtat.lecture = 'erreur';
     dcEtat.message = 'PDF illisible : ' + (e && e.message ? e.message : 'erreur');
@@ -440,8 +495,28 @@ async function dcDeposerFichier(input) {
   }
 }
 
+function dcCorrectionsNonRangees() { return dcEtat.pieces.some(p => p.modifiee && !p.rangee && p.inclure); }
+
+// Retour à l'accueil de l'outil (dépôt d'un PDF, ventes proposées).
+function dcAccueil() {
+  if (dcEtat.range) { afficherToast('Rangement en cours : attendez qu’il soit fini.', 'OK', null); return; }
+  if (dcCorrectionsNonRangees()) demanderConfirmation('Revenir à l’accueil ? Les corrections faites à la main, pas encore rangées, seront perdues.', () => dcChoisirDossier(''));
+  else dcChoisirDossier('');
+}
+
+// Vente où ranger un PDF déposé à la main : le découpage est gardé, les pièces redeviennent « à ranger » dans cette vente.
+function dcRattacher(id) {
+  if (dcEtat.range) { afficherToast('Rangement en cours : attendez qu’il soit fini.', 'OK', null); renderDecoupage(); return; }
+  const d = dossiers.find(x => x && x.id === id);
+  dcEtat.dossierId = decoupagePossible(d) ? d.id : '';
+  dcEtat.pieces.forEach(p => { p.rangee = ''; });
+  dcEtat.jeton++;
+  renderDecoupage();
+}
+
 function dcOuvrir(id) {
-  if (dcEtat.dossierId && dcEtat.dossierId !== id && dcEtat.pieces.some(p => p.modifiee) && !dcEtat.pieces.every(p => p.rangee || !p.inclure)) {
+  if (dcEtat.range) { afficherToast('Rangement en cours : attendez qu’il soit fini.', 'OK', null); return; }
+  if (dcEtat.dossierId !== id && dcCorrectionsNonRangees()) {
     demanderConfirmation('Quitter ce découpage ? Les corrections faites à la main seront perdues.', () => dcChoisirDossier(id));
   } else dcChoisirDossier(id);
 }
@@ -593,6 +668,22 @@ function dcRetirerPiece(id) {
   renderDecoupage();
 }
 
+// Tourner une ou plusieurs pages d'un quart de tour (étude 31/10 : « retourner une page ou une annexe découpée »). La rotation suit
+// la page dans toutes les pièces qui la contiennent (le PDF de tous les diagnostics compris) ; elles redeviennent « à ranger ».
+function dcTourner(numeros, quart) {
+  if (dcRangementEnCours()) return;
+  const l = (numeros || []).filter(n => Number.isInteger(n) && n >= 1 && n <= dcEtat.pages.length && !dcEtat.gardes.includes(n));
+  if (!l.length) return;
+  l.forEach(n => { dcEtat.rotations[n] = (((dcEtat.rotations[n] || 0) + (quart || 90)) % 360 + 360) % 360; if (!dcEtat.rotations[n]) delete dcEtat.rotations[n]; });
+  dcEtat.pieces.forEach(p => { if (p.pages.some(n => l.includes(n))) { p.rangee = ''; p.modifiee = true; } });
+  renderDecoupage();
+}
+
+function dcTournerPiece(id) {
+  const p = dcPiece(id);
+  if (p) dcTourner(p.pages.slice());
+}
+
 // Images des pages pour l'aperçu : le compromis ouvert une fois par pdf.js (fermé au changement de dossier), chaque page dessinée
 // à la demande puis gardée. Rendu en « print » : en « display », pdf.js attend l'image suivante de l'écran, arrêtée fenêtre cachée.
 var DC_LARGEUR_VIGNETTE = 160;
@@ -605,14 +696,15 @@ function dcFermerApercu(source) {
   if (source.faites) source.faites.clear();
 }
 
-function dcImagePage(source, n, largeur) {
-  const cle = `${largeur}:${n}`;
+function dcImagePage(source, n, largeur, rot) {
+  const cle = `${largeur}:${n}:${rot || 0}`;
   if (source.images.has(cle)) return source.images.get(cle);
   if (!source.pdfjs) source.pdfjs = pdfjsLib.getDocument({ isEvalSupported: false, data: source.octets.slice() }).promise;
   const promesse = source.pdfjs.then(async pdf => {
     const page = await pdf.getPage(n);
-    const base = page.getViewport({ scale: 1 });
-    const vue = page.getViewport({ scale: largeur / base.width });
+    const rotation = ((page.rotate || 0) + (rot || 0)) % 360;
+    const base = page.getViewport({ scale: 1, rotation });
+    const vue = page.getViewport({ scale: largeur / base.width, rotation });
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(vue.width); canvas.height = Math.round(vue.height);
     const ctx = canvas.getContext('2d');
@@ -637,12 +729,12 @@ async function dcRemplirImages() {
   const vides = Array.from(carte.querySelectorAll('img[data-dc-page]:not([src])')).sort((a, b) => b.classList.contains('dc-image-grande') - a.classList.contains('dc-image-grande'));
   for (const img of vides) {
     if (!img.isConnected) continue;
-    const n = Number(img.dataset.dcPage); const largeur = Number(img.dataset.dcLargeur);
+    const n = Number(img.dataset.dcPage); const largeur = Number(img.dataset.dcLargeur); const rot = Number(img.dataset.dcRot) || 0;
     try {
-      const url = await dcImagePage(source, n, largeur);
+      const url = await dcImagePage(source, n, largeur, rot);
       if (source !== dcEtat.source) return;
       // L'écran a pu être redessiné pendant le dessin : l'image est cherchée à nouveau.
-      carte.querySelectorAll(`img[data-dc-page="${n}"][data-dc-largeur="${largeur}"]:not([src])`).forEach(x => { x.src = url; });
+      carte.querySelectorAll(`img[data-dc-page="${n}"][data-dc-largeur="${largeur}"][data-dc-rot="${rot}"]:not([src])`).forEach(x => { x.src = url; });
     } catch (_) {
       if (source !== dcEtat.source) return;
       img.alt = `Page ${n} illisible`; img.classList.add('dc-image-erreur'); img.removeAttribute('data-dc-page');
@@ -652,21 +744,39 @@ async function dcRemplirImages() {
 
 function dcBaliseImage(n, largeur, classe) {
   const source = dcEtat.source;
-  const cle = `${largeur}:${n}`;
+  const rot = dcEtat.rotations[n] || 0;
+  const cle = `${largeur}:${n}:${rot}`;
   // Une image déjà dessinée revient tout de suite (la promesse résolue garde son URL dans `fait`).
   const fait = source && source.faites && source.faites.get(cle);
-  return `<img class="${classe}" alt="Page ${n}" data-dc-page="${n}" data-dc-largeur="${largeur}"${fait ? ` src="${escapeAttr(fait)}"` : ''}>`;
+  return `<img class="${classe}" alt="Page ${n}" data-dc-page="${n}" data-dc-largeur="${largeur}" data-dc-rot="${rot}"${fait ? ` src="${escapeAttr(fait)}"` : ''}>`;
 }
 
+// Date du dernier découpage rangé pour un dossier (historique « Compromis découpé… » / « Document découpé… »), '' sinon. Pure.
+function dateDecoupageDossier(d) {
+  const l = ((d && d.historique) || []).filter(h => h && /^(Compromis|Document) découpé/.test(String(h.texte || '')));
+  return l.length ? String(l[l.length - 1].date || '') : '';
+}
+
+// Accueil (étude 31/10 : « une page d'accueil pour uploader le PDF à découper ou proposer des dossiers ») : ventes dont le compromis
+// signé est retrouvé sur le NAS et pas encore découpé, puis celles déjà découpées ; une recherche montre toutes les ventes.
 function dcCartesAccueil(q) {
   const actifs = dcDossiersVente();
-  const liste = q ? actifs.filter(x => normaliserPourRecherche(libelleDossierAffiche(x)).includes(q) || normaliserPourRecherche(x.responsable || '').includes(q)).slice(0, 12)
-    : (() => { const recents = dossiersConsultesRecents(lireDossiersConsultes(), actifs).map(x => x.dossier); return recents.concat(actifs.filter(x => !recents.includes(x))).slice(0, 6); })();
-  const cartes = liste.map(x => `<button type="button" class="cst-accueil-carte" onclick="dcOuvrir('${escapeOnclickArg(x.id)}')">
-      <span class="cst-accueil-carte-icone" aria-hidden="true">${icone('home')}</span>
+  const carte = (x, sous, icon) => `<button type="button" class="cst-accueil-carte" onclick="dcOuvrir('${escapeOnclickArg(x.id)}')">
+      <span class="cst-accueil-carte-icone" aria-hidden="true">${icone(icon)}</span>
       <span class="cst-accueil-carte-texte"><span class="cst-accueil-carte-titre">${escapeHtml(libelleDossierAffiche(x))}</span>
-      <span class="cst-accueil-carte-sous">${escapeHtml(['Vente', x.nasDossier ? 'relié au NAS' : 'non relié au NAS', x.responsable].filter(Boolean).join(' · '))}</span></span></button>`).join('');
-  return cartes ? `<div class="cst-accueil-liste-titre"><span class="pieces-titre">${icone(q ? 'search' : 'clock')}<span class="pieces-titre-texte">${q ? 'Résultats' : 'Derniers dossiers'}</span></span></div><div class="cst-accueil-grille">${cartes}</div>` : '<div class="dash-recherche-vide">Aucune vente ne correspond.</div>';
+      <span class="cst-accueil-carte-sous">${escapeHtml(sous)}</span></span></button>`;
+  const groupe = (titre, icon, cartes) => cartes ? `<div class="cst-accueil-liste-titre"><span class="pieces-titre">${icone(icon)}<span class="pieces-titre-texte">${titre}</span></span></div><div class="cst-accueil-grille">${cartes}</div>` : '';
+  if (q) {
+    const l = actifs.filter(x => normaliserPourRecherche(libelleDossierAffiche(x)).includes(q) || normaliserPourRecherche(x.responsable || '').includes(q)).slice(0, 12);
+    return groupe('Résultats', 'search', l.map(x => carte(x, ['Vente', x.nasDossier ? 'relié au NAS' : 'non relié au NAS', x.responsable].filter(Boolean).join(' · '), 'home')).join(''))
+      || '<div class="dash-recherche-vide">Aucune vente ne correspond.</div>';
+  }
+  const avecCompromis = actifs.filter(x => x.nasDossier && typeof fichierTrouve === 'function' && fichierTrouve(x, NAS_CLE_COMPROMIS));
+  const aDecouper = avecCompromis.filter(x => !dateDecoupageDossier(x)).slice(0, 12);
+  const decoupes = actifs.filter(x => dateDecoupageDossier(x)).sort((a, b) => dateDecoupageDossier(b).localeCompare(dateDecoupageDossier(a))).slice(0, 6);
+  const html = groupe('Compromis à découper', 'ciseaux', aDecouper.map(x => carte(x, ['Compromis signé trouvé sur le NAS', x.responsable].filter(Boolean).join(' · '), 'file-text')).join(''))
+    + groupe('Déjà découpés', 'check', decoupes.map(x => carte(x, `Découpé le ${formatDateFr(dateDecoupageDossier(x).slice(0, 10))}`, 'folder')).join(''));
+  return html || '<div class="dash-recherche-vide">Aucun compromis signé à découper sur le NAS : déposez un PDF ou cherchez une vente.</div>';
 }
 
 function dcRechercher(valeur) {
@@ -682,31 +792,45 @@ function renderDecoupage() {
   if (actif) { const e = document.getElementById(actif); if (e && e.focus && e !== document.activeElement) e.focus(); }
 }
 
+var TYPES_DOCUMENTS_DECOUPAGE = 'compromis signé avec ses annexes, dossier de diagnostics, annexes seules, tout PDF à mettre en pièces';
+
 function dcRendreCorps() {
   const carte = document.getElementById('dc-carte');
   if (!carte) return;
   const d = dcDossier();
-  const entete = `<div class="dash-header"><div><div class="dash-eyebrow">Vente</div><div class="dash-titre-ligne"><h1 class="dash-titre">Découper le compromis</h1>${infoBulle('Le compromis signé de l’agence arrive avec ses annexes à la suite : CLAIRE le découpe aux pages « Annexe n° » du logiciel de l’agence, nomme chaque pièce et la range dans la rubrique de sa thématique. Diagnostics : un PDF par diagnostic et un PDF de tous les diagnostics. Chaque pièce est une copie, l’original reste tel quel.')}</div></div></div>`;
-  if (!d) {
-    carte.innerHTML = `${entete}<div class="cst-accueil">
-      <span class="cst-accueil-icone" aria-hidden="true">${icone('ciseaux')}</span>
-      <h2 class="cst-accueil-titre">Pour quelle vente ?</h2>
-      <p class="cst-accueil-sous">Le compromis signé est retrouvé sur le NAS, ou choisi à la main.</p>
-      <div class="pr-dossier-recherche-bloc cst-recherche cst-accueil-recherche"><input type="search" id="dc-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher une vente…" aria-label="Rechercher une vente" oninput="dcRechercher(this.value)"></div>
-      <div id="dc-cartes" class="aut-cartes">${dcCartesAccueil('')}</div>
+  const entete = `<div class="dash-header"><div><div class="dash-eyebrow">Vente</div><div class="dash-titre-ligne"><h1 class="dash-titre">Découper le compromis</h1>${infoBulle('Le compromis signé de l’agence arrive avec ses annexes à la suite : CLAIRE le découpe aux pages « Annexe n° » du logiciel de l’agence, nomme chaque pièce et la range dans la rubrique de sa thématique. Diagnostics : un PDF par diagnostic et un PDF de tous les diagnostics. Un dossier de diagnostics ou des annexes seules se découpent de la même façon. Chaque pièce est une copie, l’original reste tel quel.')}</div></div></div>`;
+  const fichier = (id) => `<input type="file" id="${id}" accept="application/pdf,.pdf" class="dc-fichier" onchange="dcDeposerFichier(this)">`;
+  if (!d && !dcEtat.source && dcEtat.lecture !== 'lecture') {
+    carte.innerHTML = `${entete}<div class="dc-accueil">
+      <label class="dc-depot" ondragover="event.preventDefault(); this.classList.add('survol')" ondragleave="this.classList.remove('survol')" ondrop="dcDeposerGlisse(event, this)">
+        ${fichier('dc-fichier-accueil')}
+        <span class="dc-depot-icone" aria-hidden="true">${icone('upload')}</span>
+        <span class="dc-depot-titre">Déposez un PDF à découper</span>
+        <span class="dc-depot-sous">${escapeHtml(TYPES_DOCUMENTS_DECOUPAGE[0].toUpperCase() + TYPES_DOCUMENTS_DECOUPAGE.slice(1))}</span>
+        <wa-button appearance="outlined" size="s" type="button" onclick="event.preventDefault(); document.getElementById('dc-fichier-accueil').click()">${icone('upload')}Choisir un PDF</wa-button>
+      </label>
+      ${dcEtat.message ? `<p class="hint">${escapeHtml(dcEtat.message)}</p>` : ''}
+      <div class="dc-accueil-dossiers">
+        <div class="cst-accueil-recherche dc-accueil-recherche"><input type="search" id="dc-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Ou cherchez une vente : son compromis est lu sur le NAS" aria-label="Rechercher une vente" oninput="dcRechercher(this.value)"></div>
+        <div id="dc-cartes">${dcCartesAccueil('')}</div>
+      </div>
     </div>`;
     return;
   }
-  const choisir = `<label class="dc-choisir"><input type="file" accept="application/pdf,.pdf" class="dc-fichier" onchange="dcDeposerFichier(this)"><wa-button appearance="outlined" size="s" type="button" onclick="this.previousElementSibling.click()">${icone('upload')}Choisir un PDF</wa-button></label>`;
   const aRanger = dcEtat.pieces.filter(p => p.inclure && !p.rangee && p.pages.length).length;
   const aVerifier = dcEtat.pieces.filter(p => p.reconnu === false).length;
   const rangees = dcEtat.pieces.filter(p => p.rangee).length;
+  // Un PDF déposé se range dans la vente choisie ici ; un compromis lu sur le NAS reste à son dossier.
+  const choixDossier = dcEtat.source && dcEtat.source.depose
+    ? `<select id="dc-dossier" class="dc-dossier-choix" aria-label="Vente où ranger les pièces" onchange="dcRattacher(this.value)"><option value="">Vente où ranger…</option>${dcDossiersVente().map(x => `<option value="${escapeAttr(x.id)}"${d && x.id === d.id ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(x))}</option>`).join('')}</select>`
+    : `<span class="cst-dossier-titre">${escapeHtml(d ? libelleDossierAffiche(d) : '')}</span>`;
+  const titreRanger = !d ? 'Choisissez la vente où ranger les pièces' : !d.nasDossier ? 'Dossier non relié au NAS' : '';
   const barre = `<div class="cst-barre">
-        <span class="cst-dossier-titre">${escapeHtml(libelleDossierAffiche(d))}</span>
-        <wa-button appearance="outlined" size="s" type="button" onclick="dcOuvrir('')" title="Revenir au choix du dossier">${icone('rotate-ccw')} Changer de dossier</wa-button>
-        ${choisir}
+        <wa-button appearance="outlined" size="s" type="button" onclick="dcAccueil()" title="Revenir à l’accueil de l’outil">${icone('chevron-left')}Accueil</wa-button>
+        ${choixDossier}
+        <label class="dc-choisir">${fichier('dc-fichier-barre')}<wa-button appearance="outlined" size="s" type="button" onclick="document.getElementById('dc-fichier-barre').click()">${icone('upload')}Autre PDF</wa-button></label>
         <span class="aut-barre-actions">
-          <wa-button variant="brand" size="s" type="button"${d.nasDossier && aRanger ? '' : ' disabled'}${dcEtat.range ? ' loading' : ''} title="${d.nasDossier ? '' : 'Dossier non relié au NAS'}" onclick="rangerDecoupage()">${icone('folder')}Ranger dans le dossier${aRanger ? ` (${aRanger})` : ''}</wa-button>
+          <wa-button variant="brand" size="s" type="button"${d && d.nasDossier && aRanger ? '' : ' disabled'}${dcEtat.range ? ' loading' : ''} title="${titreRanger}" onclick="rangerDecoupage()">${icone('folder')}Ranger dans le dossier${aRanger ? ` (${aRanger})` : ''}</wa-button>
         </span>
       </div>`;
   const message = dcEtat.message ? `<p class="hint">${dcEtat.lecture === 'lecture' ? icone('spinner', null, true) + ' ' : ''}${escapeHtml(dcEtat.message)}${dcEtat.source ? ` — « ${escapeHtml(dcEtat.source.nom)} »` : ''}</p>` : '';
@@ -732,14 +856,18 @@ function dcRendreCorps() {
         <div class="dc-gauche">
           <div class="cst-bloc-titre">Pièces <span class="dc-resume">${resume}</span></div>
           <div class="dc-liste">${liste}</div>
-          <wa-button appearance="outlined" class="bouton-ajout" type="button" onclick="dcAjouterPiece()" title="Une annexe que CLAIRE n’a pas repérée : elle part de la page affichée à droite"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter une pièce</wa-button>
+          <wa-button appearance="outlined" class="bouton-ajout" type="button" onclick="dcAjouterPiece()" title="Une annexe que CLAIRE n’a pas repérée : elle part de la page affichée"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter une pièce</wa-button>
         </div>
-        <div class="dc-droite">${dcDetailPiece()}</div>
+        ${dcDetailPiece()}
       </div>
     </div>`;
+  // La colonne des vignettes défile seule jusqu'à la page affichée (jamais la page entière).
   const active = carte.querySelector('.dc-vignette.actif');
-  // La bande des vignettes défile seule jusqu'à la page affichée (jamais la page entière).
-  if (active) { const bande = active.parentElement; bande.scrollLeft = Math.max(0, active.offsetLeft - bande.offsetLeft - (bande.clientWidth - active.clientWidth) / 2); }
+  if (active) {
+    const bande = active.parentElement;
+    bande.scrollTop = Math.max(0, active.offsetTop - bande.offsetTop - (bande.clientHeight - active.clientHeight) / 2);
+    bande.scrollLeft = Math.max(0, active.offsetLeft - bande.offsetLeft - (bande.clientWidth - active.clientWidth) / 2);
+  }
   dcRemplirImages();
 }
 
@@ -749,16 +877,16 @@ function libelleSortePieceDecoupage(p) {
   if (p.ajoutee) return 'Ajoutée à la main';
   if (p.sorte === 'compromis') return 'Compromis';
   if (p.sorte === 'diagnostics') return 'Tous les diagnostics';
-  if (p.sorte === 'diagnostic') return `Diagnostic · annexe n°${p.numero}`;
-  return `Annexe n°${p.numero}`;
+  if (p.sorte === 'diagnostic') return p.numero ? `Diagnostic · annexe n°${p.numero}` : 'Diagnostic';
+  return p.numero ? `Annexe n°${p.numero}` : 'Document';
 }
 
-// Colonne de droite : la pièce choisie (nom, pages, rubrique), la page affichée en grand et les vignettes de ses pages, encadrées de
-// la page d'avant et de celle d'après pour voir si la coupe est juste.
+// Au centre, la pièce choisie (nom, pages, rubrique) et la page affichée en grand ; à droite, la colonne des vignettes de ses pages
+// les unes sous les autres (étude 31/10), encadrées de la page d'avant et de celle d'après pour voir si la coupe est juste.
 function dcDetailPiece() {
   const p = dcPiece(dcEtat.choisie);
-  if (!p) return '<p class="hint">Choisissez une pièce à gauche pour voir ses pages.</p>';
-  if (!p.pages.length) return `<p class="hint">« ${escapeHtml(p.nom)} » n’a plus aucune page (tous les diagnostics sont décochés) : elle ne sera pas rangée.</p>`;
+  if (!p) return '<div class="dc-centre"><p class="hint">Choisissez une pièce à gauche pour voir ses pages.</p></div>';
+  if (!p.pages.length) return `<div class="dc-centre"><p class="hint">« ${escapeHtml(p.nom)} » n’a plus aucune page (tous les diagnostics sont décochés) : elle ne sera pas rangée.</p></div>`;
   const ido = escapeOnclickArg(p.id);
   const total = dcEtat.pages.length;
   const options = RUBRIQUES_DECOUPAGE.map(([cle, lib]) => `<option value="${escapeAttr(cle)}"${cle === p.rubrique ? ' selected' : ''}>${escapeHtml(lib)}</option>`).join('');
@@ -770,15 +898,16 @@ function dcDetailPiece() {
   const vignettes = vignettesPieceDecoupage(p.pages, total).map(v => `<div class="dc-vignette${v.dedans ? '' : ' dc-hors'}${v.page === n ? ' actif' : ''}">
       <button type="button" class="dc-vignette-image" onclick="dcVoirPage(${v.page})" title="Voir la page ${v.page} en grand">${dcBaliseImage(v.page, DC_LARGEUR_VIGNETTE, 'dc-image')}</button>
       <span class="dc-vignette-pied"><span>${garde(v.page) ? 'garde' : `p. ${v.page}`}</span>
-        ${garde(v.page) ? '' : `<button type="button" class="dc-vignette-geste" onclick="dcBasculerPage('${ido}', ${v.page})" title="${v.dedans ? 'Retirer cette page de la pièce' : 'Ajouter cette page à la pièce'}" aria-label="${v.dedans ? 'Retirer' : 'Ajouter'} la page ${v.page}">${icone(v.dedans ? 'x' : 'plus')}</button>`}</span>
+        ${garde(v.page) ? '' : `<button type="button" class="dc-vignette-geste" onclick="dcTourner([${v.page}])" title="Tourner cette page d’un quart de tour" aria-label="Tourner la page ${v.page}">${icone('rotate-cw')}</button><button type="button" class="dc-vignette-geste" onclick="dcBasculerPage('${ido}', ${v.page})" title="${v.dedans ? 'Retirer cette page de la pièce' : 'Ajouter cette page à la pièce'}" aria-label="${v.dedans ? 'Retirer' : 'Ajouter'} la page ${v.page}">${icone(v.dedans ? 'x' : 'plus')}</button>`}</span>
     </div>`).join('');
-  return `<div class="dc-detail">
+  return `<div class="dc-centre">
       <div class="dc-detail-tete">
         <span class="dc-piece-icone dc-sorte-${escapeAttr(p.sorte)}" aria-hidden="true">${icone(ICONES_SORTES_DECOUPAGE[p.sorte] || 'file-text')}</span>
         <div class="dc-detail-titre">
           <input type="text" id="dc-detail-nom" class="dc-detail-nom" value="${escapeAttr(p.nom)}" aria-label="Nom du fichier" onchange="dcChanger('${ido}', 'nom', this.value)">
           <span class="dc-piece-sous">${escapeHtml(libelleSortePieceDecoupage(p))}${p.reconnu === false ? ' · non reconnue : nommez-la et choisissez sa rubrique' : ''}${p.rangee ? ` · rangée dans ${escapeHtml(p.rangee)}` : ''}</span>
         </div>
+        <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Tourner toute la pièce d’un quart de tour" aria-label="Tourner toute la pièce" onclick="dcTournerPiece('${ido}')">${icone('rotate-cw')}</wa-button>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Télécharger cette pièce" aria-label="Télécharger cette pièce" onclick="telechargerPieceDecoupage('${ido}')">${icone('download')}</wa-button>
         ${p.ajoutee ? `<wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer cette pièce ajoutée" aria-label="Retirer cette pièce" onclick="dcRetirerPiece('${ido}')">${icone('trash')}</wa-button>` : ''}
       </div>
@@ -786,20 +915,23 @@ function dcDetailPiece() {
         <label class="dc-champ"><span>Pages</span><input type="text" id="dc-detail-pages" class="dc-pages" value="${escapeAttr(p.saisie)}" title="Pages du document (ex. 3-7, 9)" onchange="dcChanger('${ido}', 'pages', this.value)"></label>
         <label class="dc-champ"><span>Rubrique</span><select id="dc-detail-rubrique" onchange="dcChanger('${ido}', 'rubrique', this.value)">${options}</select></label>
       </div>
-      <div class="cst-bloc-titre">Pages de la pièce ${infoBulle('La page d’avant et celle d’après sont grisées (« garde » : page de garde d’une annexe, jamais reprise) : si la coupe est fausse, ajoutez-les (+) ou retirez une page (×). « Couper ici » sépare deux annexes réunies. Rien n’est rangé avant « Ranger dans le dossier ».')}</div>
-      <div class="dc-vignettes">${vignettes}</div>
       <div class="dc-grande">
         <div class="dc-grande-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page précédente"${rang > 0 ? '' : ' disabled'} onclick="dcPageVoisine(-1)">${icone('chevron-left')}</wa-button>
           <span class="dc-grande-numero">Page ${n} / ${total}${dedans ? ` · ${rang + 1}ᵉ sur ${p.pages.length}` : garde(n) ? ' · page de garde, jamais reprise' : ' · hors de cette pièce'}</span>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page suivante"${dedans && rang < p.pages.length - 1 ? '' : ' disabled'} onclick="dcPageVoisine(1)">${icone('chevron-right')}</wa-button>
           <span class="dc-grande-gestes">
+            ${garde(n) ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="dcTourner([${n}])" title="Tourner cette page d’un quart de tour (sens des aiguilles d’une montre)">${icone('rotate-cw')}Tourner</wa-button>`}
             ${peutCouper ? `<wa-button appearance="outlined" size="s" type="button" onclick="dcScinder('${ido}', ${n})" title="Deux annexes réunies : la suite, à partir de cette page, devient une nouvelle pièce">${icone('ciseaux')}Couper ici</wa-button>` : ''}
-            ${garde(n) ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="dcBasculerPage('${ido}', ${n})">${icone(dedans ? 'x' : 'plus')}${dedans ? 'Retirer la page' : 'Ajouter la page'}</wa-button>`}
+            ${garde(n) ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="dcBasculerPage('${ido}', ${n})">${icone(dedans ? 'x' : 'plus')}${dedans ? 'Retirer' : 'Ajouter'}</wa-button>`}
           </span>
         </div>
         <div class="dc-grande-page${dedans ? '' : ' dc-hors'}">${dcBaliseImage(n, DC_LARGEUR_GRANDE, 'dc-image-grande')}</div>
       </div>
+    </div>
+    <div class="dc-cote">
+      <div class="cst-bloc-titre">Pages ${infoBulle('La page d’avant et celle d’après sont grisées (« garde » : page de garde d’une annexe, jamais reprise) : si la coupe est fausse, ajoutez-les (+) ou retirez une page (×). Une page à l’envers ou couchée se tourne (↻). « Couper ici » sépare deux annexes réunies. Rien n’est rangé avant « Ranger dans le dossier ».')}</div>
+      <div class="dc-vignettes">${vignettes}</div>
     </div>`;
 }
 
@@ -818,7 +950,12 @@ async function pdfPieceDecoupage(piece, source) {
   }
   const src = s.pdfLib;
   const doc = await PDFDocument.create();
-  (await doc.copyPages(src, piece.pages.map(n => n - 1))).forEach(pg => doc.addPage(pg));
+  const rotations = (s === dcEtat.source ? dcEtat.rotations : s.rotations) || {};
+  (await doc.copyPages(src, piece.pages.map(n => n - 1))).forEach((pg, i) => {
+    const rot = rotations[piece.pages[i]] || 0;
+    if (rot) pg.setRotation(window.PDFLib.degrees(((pg.getRotation().angle || 0) + rot) % 360));
+    doc.addPage(pg);
+  });
   return new Blob([await doc.save()], { type: 'application/pdf' });
 }
 
@@ -842,6 +979,7 @@ async function rangerDecoupage(ids) {
   // État figé (audit 0.411.0, B2/B3) : un changement de dossier pendant le rangement ne touche ni le nouvel état ni les pièces rangées ;
   // `ids` = les pièces annoncées sur la carte « Autoriser ».
   const etat = dcEtat;
+  etat.source.rotations = Object.assign({}, etat.rotations);
   const jeton = etat.jeton;
   const aFaire = etat.pieces.filter(p => p.inclure && !p.rangee && p.pages.length && (!ids || ids.includes(p.id)));
   etat.range = true;
@@ -865,7 +1003,7 @@ async function rangerDecoupage(ids) {
   }
   etat.range = false;
   if (rangees) {
-    ajouterHistorique(d, `Compromis découpé : ${rangees} pièce(s) rangée(s) dans le dossier du NAS`);
+    ajouterHistorique(d, `${etat.mode === 'compromis' || etat.mode === 'entier' ? 'Compromis' : 'Document'} découpé : ${rangees} pièce(s) rangée(s) dans le dossier du NAS`);
     sauvegarder(d);
     if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false);
   }
@@ -889,6 +1027,7 @@ function appliquerCorrectionsDecoupageAgent(liste) {
     }
     if (typeof c.rubrique === 'string' && RUBRIQUES_DECOUPAGE.some(r => r[0] === c.rubrique)) { p.rubrique = c.rubrique; p.rubriques = c.rubrique ? [c.rubrique] : []; p.modifiee = true; p.rangee = ''; fait.push('rubrique ' + libelleRubriqueDecoupage(c.rubrique)); }
     if (typeof c.ranger === 'boolean') { p.inclure = c.ranger; p.modifiee = true; if (p.sorte === 'diagnostic') dcRecalculerTousDiagnostics(); fait.push(c.ranger ? 'à ranger' : 'pas rangée'); }
+    if ([90, 180, 270].includes(c.tourner)) { dcTourner(p.pages.slice(), c.tourner); fait.push(`tournée de ${c.tourner}°`); }
     if (Number.isInteger(c.couper_a)) {
       const coupe = scinderPagesDecoupage(p.pages, c.couper_a);
       if (coupe) {

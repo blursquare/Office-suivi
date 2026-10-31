@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.411.1';
+  const VERSION_APP = '0.412.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.412.0', date: '2026-10-31 22:33', resume: "« Découper le compromis » a une page d’accueil : déposez un PDF (ou glissez-le), ou choisissez une vente dont le compromis signé est sur le NAS et pas encore découpé — les ventes déjà découpées sont listées dessous. On y découpe aussi un dossier de diagnostics seul (un PDF par diagnostic et un PDF de tous) ou des annexes envoyées sans le compromis ; la vente où ranger se choisit en haut. Une page à l’envers ou couchée se tourne (↻), seule ou toute la pièce. Les petites pages s’affichent à droite, les unes sous les autres." },
     { version: '0.411.1', date: '2026-10-31 22:11', resume: "« Découper le compromis » plus visuel : les pièces à gauche, l’aperçu de la pièce choisie à droite — la page en grand et la bande de ses pages, avec la page d’avant et celle d’après grisées pour voir d’un coup d’œil si la coupe est juste. Une erreur se corrige d’un clic avant de ranger : ajouter (+) ou retirer (×) une page, « Couper ici » pour séparer deux annexes réunies, « Ajouter une pièce » pour une annexe que CLAIRE n’a pas repérée. « Demander à CLAIRE » peut aussi faire ces corrections à votre demande. Une page de garde devant une annexe (« Annexe 3 », « ANNEXE N°3 : Titre de propriété »…) n’est jamais reprise dans la pièce." },
     { version: '0.411.0', date: '2026-10-31 20:33', resume: "Nouvel outil « Découper le compromis » (Outils › Vente, et sur la fiche d’une vente reliée au NAS) : le compromis signé de l’agence, qui arrive avec toutes ses annexes à la suite, est découpé aux pages « Annexe n° » — le compromis seul, une pièce par annexe (identité, titre, plan, règlement de copropriété, PV d’AG…), un PDF par diagnostic et un PDF de tous les diagnostics —, chaque pièce nommée et rangée dans la rubrique de sa thématique du dossier du NAS, après relecture (noms, pages et rubriques modifiables). Ce sont des copies, l’original reste tel quel. « Demander à CLAIRE » sait aussi le faire." },
     { version: '0.410.1', date: '2026-10-31 09:45', resume: "Le serveur CLAIRE n’ouvre plus de fenêtre sur localhost à son démarrage : la fenêtre CLAIRE du poste est lancée sur l’adresse du serveur par le dossier Démarrage de Windows. Pour la retrouver : « ouvrirFenetreAuDemarrage »: true dans config.json." },

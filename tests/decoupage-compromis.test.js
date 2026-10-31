@@ -200,3 +200,30 @@ test('31/10 : page de garde devant une annexe — jamais reprise dans la pièce'
   assert.equal(app.pageDeGardeAnnexe(corps('REGLEMENT DE COPROPRIETE')), false);
   assert.equal(app.pageDeGardeAnnexe('Annexe 1\n' + 'ligne\n'.repeat(8)), false, 'une page pleine n’est pas une page de garde');
 });
+
+test('31/10 : autres documents — dossier de diagnostics, annexes sans compromis, document seul, compromis sans séparation', () => {
+  const ddt = app.piecesDecoupageCompromis([corps('Dossier de Diagnostics Techniques', 'Numéro de dossier : 23-X\nDate\nLigne'),
+    corps('Certificat de superficie de la partie privative', 'Ligne\nLigne\nLigne'), corps('Constat de risque d\'exposition au Plomb'), corps('Suite du plomb')], { nomFichier: 'ddt 23-dupont.pdf' });
+  assert.equal(ddt.mode, 'diagnostics');
+  assert.equal(ddt.pieces.map(p => `${p.sorte}|${p.nom}|${app.saisieDepuisPagesDecoupage(p.pages)}`).join('\n'), [
+    'diagnostic|Dossier de diagnostics techniques (synthèse)|1',
+    'diagnostic|Mesurage (loi Carrez - Boutin)|2',
+    'diagnostic|Constat de risque d’exposition au plomb (CREP)|3-4',
+    'diagnostics|Diagnostics techniques - tous les diagnostics|1-4'].join('\n'));
+  const annexes = app.piecesDecoupageCompromis([sep(1, 'Copie titre propriete', 'titre'), corps("L'AN DEUX MILLE QUINZE"), sep(2, 'Reglement de copropriete', 'rcp'), corps('REGLEMENT DE COPROPRIETE')]);
+  assert.equal(annexes.mode, 'annexes');
+  assert.equal(annexes.pieces.map(p => `${p.sorte}|${p.nom}`).join(','), 'annexe|Titre de propriété,annexe|Règlement de copropriété', 'pas de compromis vide, noms sans « annexe du compromis »');
+  const seul = app.piecesDecoupageCompromis([corps('ETAT MENTIONNANT LA PRESENCE OU L\'ABSENCE DE MATERIAUX', 'amiante\nLigne\nLigne'), corps('Suite')], { nomFichier: 'scan.pdf' });
+  assert.equal(seul.mode, 'document');
+  assert.equal(seul.pieces.length, 1, 'un seul diagnostic : pas de PDF « tous les diagnostics » en double');
+  const entier = app.piecesDecoupageCompromis([corps('COMPROMIS DE VENTE'), corps('Dossier de Diagnostics Techniques'), corps('Constat de risque d\'exposition au Plomb')]);
+  assert.equal(entier.mode, 'entier');
+  assert.equal(entier.pieces.map(p => `${p.sorte}|${p.pages.join('-')}`).join(','), 'compromis|1-2-3', 'un compromis sans séparation : rien n’est deviné');
+  assert.ok(/aucune page « Annexe n° »/.test(app.messageLectureDecoupage(entier, 3)));
+  assert.ok(/dossier de diagnostics/.test(app.messageLectureDecoupage(ddt, 4)));
+});
+
+test('31/10 : accueil — date du dernier découpage rangé', () => {
+  assert.equal(app.dateDecoupageDossier({ historique: [{ date: '2026-10-20T10:00:00Z', texte: 'Dossier créé' }] }), '');
+  assert.equal(app.dateDecoupageDossier({ historique: [{ date: '2026-10-20T10:00:00Z', texte: 'Compromis découpé : 3 pièce(s) rangée(s)' }, { date: '2026-10-31T10:00:00Z', texte: 'Document découpé : 1 pièce(s)' }] }), '2026-10-31T10:00:00Z');
+});

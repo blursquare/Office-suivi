@@ -23523,3 +23523,29 @@ Point terrain `decoupage-compromis`. Non vérifié au bureau : vrai NAS, noms r�
   un scan n'a pas de texte —, jamais la dernière page d'une annexe). Pages de garde gardées dans `dcEtat.gardes` : « garde » sur la
   vignette, ni + ni « Ajouter la page », retirées d'une saisie de pages (écran et agent). Les deux compromis réels du 31/10 : découpage
   inchangé (pas de page de garde en plus des séparations).
+
+### 31/10/2026 — 0.412.0 : Découper le compromis, accueil, autres documents, rotation
+
+Étude : « une page d'accueil pour uploader le PDF à découper ou proposer des dossiers qui avaient des PDF avec annexes ; permettre
+aussi d'uploader d'autres documents : diagnostics, annexes sans compromis… ; un outil pour retourner une page ou une annexe découpée ;
+les aperçus de petites pages à droite les uns sur les autres dans une sidebar ».
+- Accueil (`dcRendreCorps` sans dossier ni document) : zone de dépôt (clic ou glisser), « Compromis à découper » = ventes en cours
+  reliées au NAS dont le compromis signé est retrouvé (`fichierTrouve(d, NAS_CLE_COMPROMIS)`) et sans découpage rangé
+  (`dateDecoupageDossier` : historique « Compromis découpé / Document découpé »), « Déjà découpés », recherche de toutes les ventes.
+  Le contenu des PDF n'est pas lu pour l'accueil (trop lourd) : « avec annexes » n'est su qu'à l'ouverture.
+- PDF déposé à la main (`dcLireDepose`, `source.depose`) : sans vente, les pièces se téléchargent ; « Vente où ranger… » en haut
+  (`dcRattacher` : découpage gardé, pièces de nouveau « à ranger »). « Accueil » et « Autre PDF » demandent confirmation si des
+  corrections ne sont pas rangées ; rien pendant un rangement.
+- Autres documents (`piecesDecoupageCompromis(pages, { nomFichier })`, `mode`) : séparations sans compromis devant → `annexes` (pas de
+  pièce « compromis » vide) ; sans séparation, un avant-contrat (`documentEstAvantContrat`) reste entier comme avant ; au moins deux
+  diagnostics en tête de page → `diagnostics` (un PDF par diagnostic et un de tous) ; sinon `document`, une pièce du type lu sur sa
+  première page ou le nom du fichier. Hors compromis, les noms n'ont pas « - annexe du compromis ». Le PDF « tous les diagnostics »
+  n'est plus fait pour un seul diagnostic. Nom du fichier déposé : sert au type, jamais au nom de la pièce.
+- Rotation (`dcTourner`, `dcTournerPiece`, `dcEtat.rotations` par page) : ↻ d'un quart de tour sur une vignette, sur la page en grand,
+  ou toute la pièce ; la page tourne dans toutes les pièces qui la contiennent ; aperçu redessiné par pdf.js (`rotation` du viewport),
+  PDF par pdf-lib (`setRotation`, ajoutée à la rotation d'origine du scan). Agent : `corrections[].tourner` (90/180/270).
+- Trois colonnes : pièces · pièce et page en grand · vignettes les unes sous les autres (`.dc-cote`) ; sous 1 280 px les vignettes
+  passent en bande sous la page, sous 1 000 px tout en une colonne.
+- Essayé dans Chromium : accueil, dépôt d'annexes sans compromis (56 pages tirées du compromis réel, hors dépôt), rattachement,
+  rotation rangée (rotation lue dans le PDF rangé), compromis du NAS ; aucune erreur de page, pas de débordement au téléphone.
+  Les trois compromis réels : découpage inchangé.
