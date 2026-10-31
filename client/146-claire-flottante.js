@@ -7,7 +7,7 @@
 // avant, la fenêtre partait sur une conversation neuve, sans le dossier) : ses derniers messages, et la demande y est écrite pour CLAIRE.
 
 var ECRANS_CLAIRE_FLOTTANTE = ['appel-fonds', 'constitution', 'autorisations', 'decompte-vendeur', 'inventaire', 'preemption', 'prorata', 'quotites', 'calculateur', 'confreres', 'clients-biens', 'nouveau', 'agenda', 'suivi'];
-var claireFlottante = { ouverte: false, minuterie: null, signature: '', reprise: null };   // reprise : { canal, onglet } — la discussion d'où l'outil a été ouvert
+var claireFlottante = { ouverte: false, minuterie: null, signature: '', reprise: null, dossierChoisi: null, mention: { ouverte: false, debut: -1, liste: [], choix: 0 } };   // dossierChoisi : { id, nom } pris par « @ »   // reprise : { canal, onglet } — la discussion d'où l'outil a été ouvert
 var precisionEcranAgentEnAttente = '';   // dite à l'agent avec la demande, jamais montrée ni gardée dans le titre du sujet (audit 0.404.0, B1)
 
 // Ce que l'agent reçoit en plus de la phrase (puis oublié) : l'écran ouvert.
@@ -32,7 +32,8 @@ function zoneClaireFlottante() {
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerClaireFlottante(false)" title="Fermer" aria-label="Fermer">${icone('x')}</wa-button></div>
         <div class="cf-messages" id="cf-messages" aria-live="polite"></div>
         <form class="cf-saisie" onsubmit="event.preventDefault(); envoyerDepuisClaireFlottante();">
-          <textarea id="cf-texte" rows="2" placeholder="Demandez à CLAIRE… (elle voit cet écran)" onkeydown="if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); envoyerDepuisClaireFlottante(); }"></textarea>
+          <div class="asst-mention cf-mention" id="cf-mention" role="listbox" style="display:none;"></div>
+          <textarea id="cf-texte" rows="2" placeholder="Demandez à CLAIRE… @ pour un collègue ou un dossier" oninput="majMentionClaireFlottante()" onkeydown="toucheClaireFlottante(event)"></textarea>
           <wa-button variant="brand" size="s" type="submit">Envoyer</wa-button>
         </form></div>
       <button type="button" class="cf-bouton" id="cf-bouton" onclick="basculerClaireFlottante()" title="Demander à CLAIRE" aria-label="Demander à CLAIRE">${icone('discussion')}</button>`;
@@ -69,11 +70,12 @@ function renderClaireFlottante() {
   chargerConversationsAssistant();   // collaborateur du poste changé : sa conversation à lui (audit 0.404.0, M2)
   // Redessinée seulement quand quelque chose a changé : on peut remonter dans une réponse, un clic sur « Autoriser » n'est pas perdu (M3).
   const dernier = assistantMessages[assistantMessages.length - 1];
-  const signature = [canaux.actif, assistantMessages.length, dernier ? String(dernier.html || '').length + ':' + (dernier.boutons || []).length : '', assistantEnCours, assistantEtapeAgent, dossierOuvert].join('|');
+  const signature = [canaux.actif, assistantMessages.length, dernier ? String(dernier.html || '').length + ':' + (dernier.boutons || []).length : '', assistantEnCours, assistantEtapeAgent, dossierOuvert, dossierLieClaireFlottante()].join('|');
   if (signature === claireFlottante.signature) return;
   claireFlottante.signature = signature;
   const enBas = zone.scrollHeight - zone.scrollTop - zone.clientHeight < 60;
-  const d = dossierOuvert ? dossiers.find(x => x.id === dossierOuvert) : null;
+  const idLie = dossierLieClaireFlottante();
+  const d = idLie ? dossiers.find(x => x.id === idLie) : null;
   const tete = document.getElementById('cf-dossier');
   if (tete) tete.textContent = d ? libelleDossierAffiche(d) : '';
   const canal = canalPourClaireFlottante();
@@ -103,6 +105,27 @@ async function envoyerDepuisClaireFlottante() {
   const texte = champ ? champ.value.trim() : '';
   if (!texte || (typeof occupeAssistant === 'function' && occupeAssistant())) return;
   const canal = canalPourClaireFlottante();
+  fermerMentionClaireFlottante();
+  // Un collègue cité (@julie) hors d'une discussion reprise : le message va à l'équipe, pas à CLAIRE (étude 31/10 : « des @ pour interpeller
+  // quelqu'un ») — dans le canal du dossier rattaché (il y est prévenu), sinon en message privé avec lui.
+  if (!canal) {
+    const cites = collegueCitesClaireFlottante(texte);
+    if (cites.length && !/(^|[^a-z0-9])@claire(?![a-z0-9])/i.test(texte)) {
+      const idLie = dossierLieClaireFlottante(texte);
+      const cible = idLie ? 'd:' + idLie : idCanalPriveEntre(utilisateurPoste, cites[0]);
+      if (!cible || !utilisateurPoste) { afficherToast('Choisissez d’abord votre nom (collaborateur du poste) pour écrire à un collègue.', 'OK', null); return; }
+      try {
+        const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(cible)}/messages`, { method: 'POST', headers: enteteJsonCanaux(), body: JSON.stringify({ auteur: utilisateurPoste, claire: false, texte, html: '', pj: [], parent: '' }) });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
+        champ.value = '';
+        claireFlottante.dossierChoisi = null;
+        const d = idLie ? dossiers.find(x => x.id === idLie) : null;
+        afficherToast(`Message envoyé à ${cites.map(c => prenomCollaborateur(c)).join(', ')}${d ? ` dans la discussion de ${libelleDossierAffiche(d)}` : ' en message privé'}.`, 'OK', null);
+        noterVerificationPoste('claire-flottante', { detail: 'collègue interpellé depuis la fenêtre flottante' });
+      } catch (e) { afficherToast('Message non envoyé : ' + (e.message || e), 'OK', null); }
+      return;
+    }
+  }
   let demande = texte;
   if (canal) {
     // Dans la discussion du dossier : la demande s'adresse à CLAIRE, sauf si elle cite un collègue (@julie…).
@@ -114,11 +137,16 @@ async function envoyerDepuisClaireFlottante() {
     // Hors d'un canal ; le sujet de moins de trois heures revient (audit 0.404.0, B2).
     if (canaux.actif) { quitterCanal(); reprendreSujetRecentAssistant(); }
   }
-  // La fiche ouverte rattache la demande à son dossier ; un autre dossier dans le sujet en cours ouvre un nouveau sujet (client/145).
-  if (!canal && dossierOuvert) {
-    if (nouveauSujetAssistant(assistantMessages, assistantContexte.dossierId, dossierOuvert, Date.now())) ouvrirNouveauSujetAssistant(dossierOuvert);
-    else assistantContexte.dossierId = dossierOuvert;
+  // Le dossier de la fiche ou celui choisi sur l'écran de l'outil (étude 31/10 : « quand un dossier est sélectionné sur la page, la discussion
+  // est rattachée au dossier »), ou celui pris par « @ », rattache la demande ; un autre dossier dans le sujet en cours ouvre un nouveau sujet (client/145).
+  const idLie = canal ? '' : dossierLieClaireFlottante(texte);
+  if (idLie) {
+    if (nouveauSujetAssistant(assistantMessages, assistantContexte.dossierId, idLie, Date.now())) ouvrirNouveauSujetAssistant(idLie);
+    else assistantContexte.dossierId = idLie;
+    // Le dossier pris par « @ » est imposé à l'agent comme sur la page Discussions (mentionsChoisiesAssistant, client/49).
+    if (claireFlottante.dossierChoisi && claireFlottante.dossierChoisi.id === idLie) mentionsChoisiesAssistant.push({ nom: claireFlottante.dossierChoisi.nom, id: idLie });
   }
+  claireFlottante.dossierChoisi = null;
   champ.value = '';
   clearInterval(claireFlottante.minuterie);
   claireFlottante.minuterie = setInterval(() => { if (claireFlottante.ouverte) renderClaireFlottante(); }, 700);
@@ -166,4 +194,89 @@ function demarrerClaireFlottante() {
     if (document.hidden || !claireFlottante.ouverte || !canalPourClaireFlottante() || ecranAffiche('assistant') || assistantEnCours) return;
     chargerMessagesCanal(false).then(() => { if (claireFlottante.ouverte) renderClaireFlottante(); });
   }, INTERVALLE_CANAL_ACTIF_MS);
+}
+
+// ---- Dossier rattaché et « @ » de la fenêtre flottante (étude 31/10) ----
+
+// Le dossier choisi sur l'écran de l'outil affiché (Appel de fonds, Quotités, Contrôle de l'urbanisme, Constitution, Autorisations, Décompte
+// vendeur, Provision), '' sinon. Jamais deviné : la valeur que l'outil garde lui-même.
+function dossierEcranClaireFlottante() {
+  if (document.body.classList.contains('fiche-en-page')) return '';
+  const o = typeof ongletActuel === 'string' ? ongletActuel : '';
+  const v = (f) => { try { return String(f() || ''); } catch (e) { return ''; } };
+  const id = o === 'appel-fonds' ? v(() => afDossierLie)
+    : o === 'quotites' ? v(() => qtDossierLie)
+    : o === 'preemption' ? v(() => prEtat && prEtat.dossierId)
+    : o === 'constitution' ? v(() => cstEtat && cstEtat.dossierId)
+    : o === 'autorisations' ? v(() => autEtat && autEtat.dossierId)
+    : o === 'decompte-vendeur' ? v(() => dvEtat && dvEtat.dossierId)
+    : o === 'calculateur' ? v(() => provisionDossierId) : '';
+  return id && dossiers.some(x => x.id === id) ? id : '';
+}
+
+// Le dossier de la demande : celui pris par « @ » (s'il est encore écrit dans la phrase), sinon la fiche ouverte en page, sinon le dossier de
+// l'écran de l'outil, sinon la fiche ouverte ailleurs.
+function dossierLieClaireFlottante(texte) {
+  const c = claireFlottante.dossierChoisi;
+  if (c && (texte === undefined || String(texte).includes(c.nom))) return c.id;
+  if (document.body.classList.contains('fiche-en-page') && dossierOuvert) return dossierOuvert;
+  return dossierEcranClaireFlottante() || dossierOuvert || '';
+}
+
+// Les collègues cités dans le texte (« @julie », sans accent ni casse) : leur nom complet. Jamais soi-même ni CLAIRE.
+function collegueCitesClaireFlottante(texte) {
+  const t = normaliserPourRecherche(String(texte || ''));
+  const liste = (canaux && Array.isArray(canaux.collaborateurs) && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES).map(c => String(c && (c.nom || c) || ''));
+  return liste.filter(c => c && c !== utilisateurPoste && new RegExp('(^|[^a-z0-9])@' + normaliserPourRecherche(c.split(/\s+/)[0]) + '(?![a-z0-9])').test(t));
+}
+
+function majMentionClaireFlottante() {
+  const champ = document.getElementById('cf-texte');
+  const menu = document.getElementById('cf-mention');
+  if (!champ || !menu) return;
+  const avant = champ.value.slice(0, champ.selectionStart || 0);
+  const m = avant.match(/(^|\s)@([^\s@]{0,30})$/);
+  if (!m) { fermerMentionClaireFlottante(); return; }
+  const collabs = (canaux && Array.isArray(canaux.collaborateurs) && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES).map(c => String(c && (c.nom || c) || ''));
+  const liste = mentionsPourCanal(m[2], collabs, dossiers, true, utilisateurPoste);
+  if (!liste.length) { fermerMentionClaireFlottante(); return; }
+  const prec = claireFlottante.mention;
+  claireFlottante.mention = { ouverte: true, debut: avant.length - m[2].length - 1, liste, choix: Math.min(prec.ouverte ? prec.choix : 0, liste.length - 1) };
+  menu.innerHTML = liste.map((x, k) => `<button type="button" class="asst-mention-ligne${k === claireFlottante.mention.choix ? ' actif' : ''}" role="option" aria-selected="${k === claireFlottante.mention.choix}" onmousedown="event.preventDefault(); choisirMentionClaireFlottante(${k})">
+      <span class="asst-mention-nom">${escapeHtml(x.libelle || x.nom)}</span>${x.note ? `<span class="asst-mention-note">${escapeHtml(x.note)}</span>` : (x.type === 'dossier' ? '<span class="asst-mention-note">rattacher</span>' : '')}</button>`).join('');
+  menu.style.display = 'block';
+}
+
+function fermerMentionClaireFlottante() {
+  claireFlottante.mention = { ouverte: false, debut: -1, liste: [], choix: 0 };
+  const menu = document.getElementById('cf-mention');
+  if (menu) { menu.style.display = 'none'; menu.innerHTML = ''; }
+}
+
+function choisirMentionClaireFlottante(k) {
+  const champ = document.getElementById('cf-texte');
+  const x = claireFlottante.mention.liste[k];
+  if (!champ || !x) return;
+  const fin = champ.selectionStart || 0;
+  const insere = (x.type === 'dossier' ? x.nom : x.insere) + ' ';
+  champ.value = champ.value.slice(0, claireFlottante.mention.debut) + insere + champ.value.slice(fin);
+  const pos = claireFlottante.mention.debut + insere.length;
+  // Un dossier choisi rattache la demande (en-tête de la fenêtre mis à jour).
+  if (x.type === 'dossier' && x.id) { claireFlottante.dossierChoisi = { id: x.id, nom: x.nom }; claireFlottante.signature = ''; renderClaireFlottante(); }
+  fermerMentionClaireFlottante();
+  champ.focus();
+  champ.setSelectionRange(pos, pos);
+}
+
+function toucheClaireFlottante(e) {
+  const mt = claireFlottante.mention;
+  if (mt.ouverte && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault();
+    mt.choix = (mt.choix + (e.key === 'ArrowDown' ? 1 : mt.liste.length - 1)) % mt.liste.length;
+    majMentionClaireFlottante();
+    return;
+  }
+  if (mt.ouverte && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); choisirMentionClaireFlottante(mt.choix); return; }
+  if (mt.ouverte && e.key === 'Escape') { e.preventDefault(); fermerMentionClaireFlottante(); return; }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyerDepuisClaireFlottante(); }
 }

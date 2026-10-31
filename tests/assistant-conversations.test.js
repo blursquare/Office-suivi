@@ -98,3 +98,12 @@ test('htmlAncienMessageAssistant : un ancien sujet se lit sans boutons, champs n
   const h = app.htmlAncienMessageAssistant('<p id="x" onclick="f()">Texte</p><wa-button onclick="g()">Corriger</wa-button><textarea>a</textarea><input id="y">');
   assert.equal(h, '<p>Texte</p>');
 });
+
+test('CLAIRE flottante : les collègues cités par @, jamais soi-même ni CLAIRE (étude 31/10)', () => {
+  const { chargerApplication } = require('./helpers/load-app.js');
+  const app = chargerApplication();
+  require('node:vm').runInContext("utilisateurPoste = 'Bastien ANGLUMENT'; canaux.collaborateurs = [];", app);
+  const cites = app.collegueCitesClaireFlottante('@julie peux-tu regarder ? @Bastien @CLAIRE @jérémy');
+  assert.equal(cites.join('|'), 'Julie VASSELIN|Jérémy SAUJOT');
+  assert.equal(app.collegueCitesClaireFlottante('écrire à julie@exemple.fr').length, 0);
+});

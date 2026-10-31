@@ -10912,7 +10912,7 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .cf-auteur { font-size: var(--texte-xs); font-weight: 600; color: var(--muted); margin-bottom: 2px; }
 .cf-moi { align-self: flex-end; background: var(--paper-sunk); border-radius: var(--rayon-m); padding: 6px 12px; }
 .cf-vide { color: var(--muted); margin: 0; }
-.cf-saisie { display: flex; gap: 8px; align-items: flex-end; padding: 8px; border-top: 1px solid var(--line); }
+.cf-saisie { display: flex; gap: 8px; align-items: flex-end; padding: 8px; border-top: 1px solid var(--line); position: relative; }
 .cf-saisie textarea { flex: 1; min-height: 40px; resize: none; border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 8px; font: inherit; background: var(--paper-card); color: var(--ink); }
 @media print { .claire-flottante { display: none !important; } }
 .asst-message { display: block; max-width: 720px; margin: 0 auto; padding: 8px 0; }
