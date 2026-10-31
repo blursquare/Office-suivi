@@ -8,7 +8,7 @@
 // contourner) :
 // - ce poste porte un cookie secret (`claire-poste`, tiré au hasard à chaque lancement, jamais envoyé ailleurs que sur ce serveur) : toute requête
 //   qui le porte passe par `routeInterditePosteClaire` — réglages, envoi d'email, Exchange, Yousign, Teams, mise à jour, sauvegarde… refusés (403) ;
-// - toute écriture qu'elle voudrait faire passe par une demande de validation à Bastien (proposition de type `validation`, client/128) ;
+// - toute écriture qu'elle voudrait faire passe par une demande de validation (au demandeur du travail, à Bastien sans travail connu) (proposition de type `validation`, client/128) ;
 // - démarré à la demande, arrêté après 10 minutes sans travail : aucun processus permanent.
 
 const crypto = require('node:crypto');
@@ -59,7 +59,7 @@ function routeInterditePosteClaire(methode, chemin) {
   const m = String(methode || 'GET').toUpperCase();
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return INTERDITS_LECTURE.some((re) => re.test(c));
   // Écritures : une LISTE BLANCHE (audit 27/10, H2 : la liste noire en laissait passer 96 sur 168 — réglages de Claude, Outlook,
-  // suppressions). Seul ce dont son travail a besoin, chaque geste ayant déjà été validé par Bastien côté page ; la liste noire reste en second filet.
+  // suppressions). Seul ce dont son travail a besoin, chaque geste ayant déjà été validé côté page ; la liste noire reste en second filet.
   if (INTERDITS_ECRITURE.some((re) => re.test(c))) return true;
   return !PERMIS_ECRITURE.some(([methodes, re]) => methodes.includes(m) && re.test(c));
 }

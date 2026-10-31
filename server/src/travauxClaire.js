@@ -23,14 +23,20 @@ function assainirTravaux(brut) {
     id: borne(t.id, 40), consigne: borne(t.consigne, 4000), demandeur: borne(t.demandeur, 80),
     etat: ETATS_TRAVAIL.includes(t.etat) ? t.etat : 'erreur',
     creeLe: borne(t.creeLe, 40), debutLe: borne(t.debutLe, 40), finLe: borne(t.finLe, 40),
-    resultat: borne(t.resultat, 8000), erreur: borne(t.erreur, 300)
+    resultat: borne(t.resultat, 8000), erreur: borne(t.erreur, 300),
+    titre: borne(t.titre, 140), cle: borne(t.cle, 60), pasAvant: borne(t.pasAvant, 40)
   })).slice(-MAX_TRAVAUX);
 }
 
-/** Pure : ajoute un travail en attente. @param {any[]} liste @param {string} consigne @param {string} demandeur @param {Date} [maintenant] */
-function ajouterTravail(liste, consigne, demandeur, maintenant) {
+/** Pure : ajoute un travail en attente. @param {any[]} liste @param {string} consigne @param {string} demandeur @param {Date} [maintenant] @param {{ titre?: string, cle?: string, differeMs?: number }} [options] */
+function ajouterTravail(liste, consigne, demandeur, maintenant, options) {
+  const o = options || {};
+  const quand = maintenant || new Date();
+  // `pasAvant` : une reprise après fermeture de la fenêtre attend quelques secondes — si c'était un rechargement, la fenêtre revenue l'annule
+  // (audit 0.414.0) ; `titre` : ce que dit le compte rendu (la demande, pas « Demande commencée… »).
   const t = { id: 'tr-' + crypto.randomBytes(8).toString('base64url'), consigne: borne(consigne, 4000).trim(), demandeur: borne(demandeur, 80),
-    etat: 'attente', creeLe: (maintenant || new Date()).toISOString(), debutLe: '', finLe: '', resultat: '', erreur: '' };
+    etat: 'attente', creeLe: quand.toISOString(), debutLe: '', finLe: '', resultat: '', erreur: '',
+    titre: borne(o.titre, 140), cle: borne(o.cle, 60), pasAvant: o.differeMs ? new Date(quand.getTime() + o.differeMs).toISOString() : '' };
   // Les plus anciens travaux FINIS partent d'abord ; jamais un travail encore à faire.
   let l = [...liste, t];
   while (l.length > MAX_TRAVAUX) {
@@ -67,7 +73,7 @@ function creerFileTravaux(o) {
     enMarche = true;
     try {
       for (;;) {
-        const suivant = lire().find((t) => t.etat === 'attente');
+        const suivant = lire().find((t) => t.etat === 'attente' && (!t.pasAvant || t.pasAvant <= maintenant().toISOString()));
         if (!suivant) break;
         majTravail(suivant.id, { etat: 'en-cours', debutLe: maintenant().toISOString() });
         let fin;
@@ -85,7 +91,7 @@ function creerFileTravaux(o) {
         // La personne est prévenue : un message de CLAIRE dans sa conversation, avec le compte rendu (routes/posteClaire.js).
         try {
           if (fin) o.deposer({ id: 'pc-' + fin.id, routine: 'poste-claire', responsable: fin.demandeur, type: 'alerte', empreinte: 'poste-claire-fini:' + fin.id,
-            titre: (fin.etat === 'fini' ? 'Travail terminé : ' : 'Travail non terminé : ') + fin.consigne.slice(0, 100),
+            titre: (fin.etat === 'fini' ? 'Travail terminé : ' : 'Travail non terminé : ') + (fin.titre || fin.consigne).slice(0, 100),
             resume: (fin.etat === 'fini' ? fin.resultat : fin.erreur).slice(0, 3500) });
         } catch (e) { if (o.journal) o.journal('travail de CLAIRE : prévenir le demandeur a échoué'); }
       }
@@ -94,10 +100,12 @@ function creerFileTravaux(o) {
 
   return {
     /** @param {string} consigne @param {string} demandeur */
-    confier(consigne, demandeur) {
-      const r = ajouterTravail(lire(), consigne, demandeur, maintenant());
+    /** @param {string} consigne @param {string} demandeur @param {{ titre?: string, cle?: string, differeMs?: number }} [options] */
+    confier(consigne, demandeur, options) {
+      const r = ajouterTravail(lire(), consigne, demandeur, maintenant(), options);
       ecrire(r.liste);
       setImmediate(() => { traiter().catch(() => {}); });
+      if (options && options.differeMs) { const m = setTimeout(() => { traiter().catch(() => {}); }, options.differeMs + 500); if (m.unref) m.unref(); }
       return { travail: r.travail, position: r.liste.filter((t) => t.etat === 'attente').length };
     },
     /** @param {string} id @param {string} qui @param {boolean} admin */
@@ -109,6 +117,13 @@ function creerFileTravaux(o) {
       return { travail: majTravail(id, { etat: 'annule', finLe: maintenant().toISOString() }) };
     },
     lister: (qui, tous) => travauxVisibles(lire(), qui, tous),
+    /** Une reprise annulée par la fenêtre revenue (rechargement) : seulement si elle n'a pas commencé et qu'elle est bien de ce demandeur. */
+    annulerReprise(cle, qui) {
+      const t = cle ? lire().find((x) => x.cle === cle && x.demandeur === qui && x.etat === 'attente') : null;
+      if (!t) return false;
+      majTravail(t.id, { etat: 'annule', finLe: maintenant().toISOString() });
+      return true;
+    },
     reprendre: () => traiter(),
     /** Vrai pendant qu'un travail est traité (pour le dire à l'écran). */
     enMarche: () => enMarche,

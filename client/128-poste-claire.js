@@ -2,7 +2,7 @@
 // d'envoi ; elle agit comme un collaborateur qui me fait valider toute demande »). Le serveur (server/src/posteClaire.js) ouvre une fenêtre
 // CLAIRE sans écran à l'adresse `/?poste-claire=1` ; ce fichier la met en « poste de CLAIRE » :
 // - Réglages retirés (lien caché, écran refusé), boutons d'envoi inertes — le serveur refuse de toute façon ces routes à ce poste (403) ;
-// - toute carte « Autoriser » de l'agent devient une DEMANDE DE VALIDATION à Bastien (proposition `validation`, carte dans le canal du dossier) :
+// - toute carte « Autoriser » de l'agent devient une DEMANDE DE VALIDATION (au demandeur du travail, à Bastien sans travail connu) (proposition `validation`, carte dans le canal du dossier) :
 //   le poste attend sa décision ; refusée ou sans réponse, CLAIRE n'agit pas ;
 // - `travaillerPosteClaire(consigne)` : le serveur lui confie un travail, l'agent le fait avec ses outils et rend son compte rendu.
 // Côté collaborateur : « Lui confier un travail » dans le profil de CLAIRE (client/126), réservé aux administrateurs.
@@ -33,7 +33,7 @@ async function demanderValidationPosteClaire(description) {
     id = (await r.json()).id || '';
   } catch (e) { return false; }
   if (!id) return false;
-  assistantEtapeAgent = 'J’attends la validation de Bastien…';
+  assistantEtapeAgent = 'J’attends la validation (« Demande de CLAIRE » dans « À traiter »)…';
   const fin = Date.now() + DELAI_VALIDATION_POSTE_CLAIRE_MS;
   while (Date.now() < fin) {
     await new Promise((ok) => setTimeout(ok, INTERVALLE_VALIDATION_POSTE_CLAIRE_MS));
@@ -78,7 +78,7 @@ function brouillonPosteClaire() {
 if (POSTE_CLAIRE) {
   questionPosteEcartee = true;   // pas de « qui utilise ce poste ? » : c'est le poste de CLAIRE
   document.documentElement.classList.add('poste-claire');
-  // Toute demande d'autorisation devient une demande à Bastien.
+  // Toute demande d'autorisation devient une demande de validation (au demandeur du travail).
   demanderAutorisationAgent = demanderValidationPosteClaire;
   // Réglages : refusés (le serveur refuse aussi leurs routes).
   const definirOngletOrigine = definirOnglet;

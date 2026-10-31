@@ -14,6 +14,7 @@ const { creerFileTravaux } = require('../travauxClaire');
 const { collaborateurDe } = require('./routines');
 
 const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
+const DIFFERE_REPRISE_MS = 20 * 1000;   // le temps qu'une fenêtre rechargée revienne et annule la reprise
 
 const VALIDEUR = 'Bastien ANGLUMENT';
 
@@ -64,8 +65,16 @@ function creerRouteurPosteClaire(parametresRepo, poste, config) {
     const demandeur = collaborateurDe(req.body && req.body.demandeur);
     if (!consigne) { res.status(400).json({ erreur: 'Consigne vide.' }); return; }
     if (!demandeur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
-    const r = file.confier(consigne, demandeur);
+    const reprise = !!(req.body && req.body.reprise);
+    const r = file.confier(consigne, demandeur, reprise ? { titre: String(req.body.titre || '').slice(0, 140), cle: String(req.body.cle || '').slice(0, 60), differeMs: DIFFERE_REPRISE_MS } : undefined);
     res.status(202).json({ ok: true, id: r.travail.id, position: r.position });
+  });
+
+  // La fenêtre revenue après un rechargement annule la reprise qu'elle avait confiée en partant (audit 0.414.0 : F5, mise à jour).
+  routeur.post('/poste-claire/reprise/annuler', (req, res) => {
+    if (!ordinaire(req, res)) return;
+    const qui = collaborateurDe(req.body && req.body.demandeur);
+    res.json({ ok: true, annulee: !!qui && file.annulerReprise(String(req.body && req.body.cle || ''), qui) });
   });
 
   routeur.get('/poste-claire/travaux', (req, res) => {

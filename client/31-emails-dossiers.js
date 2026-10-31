@@ -1261,6 +1261,8 @@
     if (el && (el.tagName === 'TEXTAREA' || el.isContentEditable || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit)$/i.test(el.type || '')) || el.tagName === 'SELECT')) return true;
     // Un brouillon d'email ouvert (à droite des Discussions ou en fenêtre) n'est jamais perdu par un rechargement (relecture 0.374.0).
     if (typeof redaction !== 'undefined' && redaction) return true;
+    // Une demande à CLAIRE en cours n'est pas coupée par le rechargement automatique (audit 0.414.0).
+    if (typeof demandeEnCoursAssistant !== 'undefined' && demandeEnCoursAssistant) return true;
     // Les outils (nouveau dossier, relecture, appel de fonds, calculs…) gardent un travail non enregistré.
     return !['dashboard', 'suivi', 'agenda', 'scans', 'confreres', 'reglages', 'assistant'].includes(ongletActuel);
   }

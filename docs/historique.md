@@ -23570,3 +23570,9 @@ ma place. »
 - Prompt : plus de « tu ne cliques sur rien » ; remplir un outil jusqu'au bout = remplir puis cliquer ce qui le fait avancer.
 - Le poste de CLAIRE garde le refus du serveur sur les envois et les réglages. Limite : le classement lit le LIBELLÉ — un bouton d'envoi
   dont le texte ne dit pas l'envoi serait vu comme libre (aucun relevé dans les écrans actuels ; à signaler).
+- 31/10, audit de 0.414.0 (`docs/audits/2026-10-31-0.414.0.md`, aucun point Haut) : une reprise attend 20 s avant de commencer (`pasAvant`) et
+  une fenêtre RECHARGÉE (F5, mise à jour) l'annule (`claire-reprise` en sessionStorage, `POST /api/poste-claire/reprise/annuler`) ; le
+  rechargement automatique après une mise à jour attend la fin d'une demande en cours ; le compte rendu porte le texte de la demande (`titre`) ;
+  la consigne demande de lister à la fin les gestes non validés à temps (« À valider en revenant ») — les « Demande de CLAIRE » d'un demandeur
+  parti expirent toujours en 8 minutes ; textes « validation de Bastien » corrigés. Reste à décider par l'étude : les administrateurs voient la
+  consigne de tous les travaux (donc des demandes reprises de Julie et Jérémy).

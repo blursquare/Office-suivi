@@ -9,7 +9,8 @@ var demandeEnCoursAssistant = null;
 function debuterDemandeArrierePlan(texte, dossierId, nbPieces) {
   if (typeof POSTE_CLAIRE !== 'undefined' && POSTE_CLAIRE) return;   // la fenêtre de CLAIRE elle-même ne se confie rien
   if (!assistantDisponibilite || !assistantDisponibilite.agent) return;
-  demandeEnCoursAssistant = { texte: String(texte || ''), dossierId: String(dossierId || ''), pieces: Number(nbPieces) || 0, autorises: [], debut: Date.now() };
+  demandeEnCoursAssistant = { texte: String(texte || ''), dossierId: String(dossierId || ''), pieces: Number(nbPieces) || 0, autorises: [], debut: Date.now(),
+    cle: 'rp-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) };
 }
 
 function finirDemandeArrierePlan() { demandeEnCoursAssistant = null; }
@@ -31,7 +32,8 @@ function consigneRepriseArrierePlan(demande, libelleDossier) {
     `Demande : ${demande.texte}`,
     libelleDossier ? `Dossier : ${libelleDossier}` : '',
     demande.autorises.length ? `Déjà autorisé pendant la demande (vérifie sur la fiche ou l'historique avant de refaire) : ${demande.autorises.join(' ; ')}` : '',
-    demande.pieces ? 'Des pièces jointes étaient jointes à la demande : elles ne te sont pas transmises, dis-le dans ton compte rendu si elles manquent.' : ''
+    demande.pieces ? 'Des pièces jointes étaient jointes à la demande : elles ne te sont pas transmises, dis-le dans ton compte rendu si elles manquent.' : '',
+    'L’utilisateur n’est peut-être plus devant CLAIRE : un geste qu’il n’a pas validé à temps n’est pas fait — liste-les à la fin de ton compte rendu (« À valider en revenant : … ») pour qu’il les redemande.'
   ];
   return lignes.filter(Boolean).join('\n').slice(0, 4000);
 }
@@ -46,8 +48,22 @@ if (typeof window !== 'undefined' && window.addEventListener) {
     const d = demandeEnCoursAssistant;
     if (!confierEnPartant(d, Date.now(), ev && ev.persisted) || !utilisateurPoste || !navigator.sendBeacon) return;
     const dossier = d.dossierId ? (dossiers || []).find(x => x.id === d.dossierId) : null;
-    const corps = JSON.stringify({ consigne: consigneRepriseArrierePlan(d, dossier ? libelleDossierAffiche(dossier) : ''), demandeur: utilisateurPoste, reprise: true });
-    try { navigator.sendBeacon('/api/poste-claire/travail', new Blob([corps], { type: 'application/json' })); } catch (e) { /* la fenêtre se ferme : rien d'autre à faire */ }
+    const corps = JSON.stringify({ consigne: consigneRepriseArrierePlan(d, dossier ? libelleDossierAffiche(dossier) : ''), demandeur: utilisateurPoste, reprise: true,
+      cle: d.cle, titre: d.texte.replace(/\s+/g, ' ').slice(0, 100) });
+    try {
+      navigator.sendBeacon('/api/poste-claire/travail', new Blob([corps], { type: 'application/json' }));
+      // Gardé pour l'onglet seulement : une fenêtre RECHARGÉE le retrouve et annule la reprise (le serveur attend 20 s avant de la commencer).
+      sessionStorage.setItem('claire-reprise', JSON.stringify({ cle: d.cle, quand: Date.now() }));
+    } catch (e) { /* la fenêtre se ferme : rien d'autre à faire */ }
     demandeEnCoursAssistant = null;
+  });
+  // Rechargement (F5, mise à jour) : ce n'était pas un départ — la reprise confiée en partant est annulée, la demande est à relancer ici.
+  window.addEventListener('load', () => {
+    let r = null;
+    try { r = JSON.parse(sessionStorage.getItem('claire-reprise') || 'null'); sessionStorage.removeItem('claire-reprise'); } catch (e) { r = null; }
+    if (!r || !r.cle || Date.now() - Number(r.quand || 0) > 60 * 1000 || !utilisateurPoste) return;
+    fetchAvecAuth('/api/poste-claire/reprise/annuler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cle: r.cle, demandeur: utilisateurPoste }) })
+      .then(x => x.json()).then(j => { if (j && j.annulee) afficherToast('La page a été rechargée pendant une demande à CLAIRE : renvoyez-la pour qu’elle la reprenne.', 'OK', null); })
+      .catch(() => { /* serveur injoignable : la reprise se fera sur le serveur */ });
   });
 }

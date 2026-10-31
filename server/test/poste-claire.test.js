@@ -195,3 +195,21 @@ test('31/10 : la file dit le travail en cours (ses gestes sont validés par son 
   assert.match(deposes[0].titre, /^Travail non terminé/);
   assert.equal(file.enCours(), null);
 });
+
+test('31/10 (audit 0.414.0) : une reprise attend avant de commencer, une fenêtre rechargée l’annule, son titre est la demande', async () => {
+  const { creerFileTravaux } = require('../src/travauxClaire');
+  const memoire = {};
+  const repo = { lireJsonBrut: (c, d) => (c in memoire ? JSON.parse(memoire[c]) : d), ecrireJsonBrut: (c, v) => { memoire[c] = JSON.stringify(v); } };
+  const faits = [];
+  const deposes = [];
+  const file = creerFileTravaux({ repo, poste: { async travailler(c) { faits.push(c); return 'ok'; } }, deposer: (p) => deposes.push(p) });
+  file.confier('Demande commencée…\nDemande : relance', 'Julie VASSELIN', { cle: 'rp-1', titre: 'relance', differeMs: 60000 });
+  await new Promise((ok) => setTimeout(ok, 50));
+  assert.equal(faits.length, 0, 'pas avant 20 s');
+  assert.equal(file.annulerReprise('rp-1', 'Bastien ANGLUMENT'), false, 'pas la reprise de Bastien');
+  assert.equal(file.annulerReprise('rp-1', 'Julie VASSELIN'), true);
+  file.confier('Demande commencée…', 'Julie VASSELIN', { cle: 'rp-2', titre: 'le point sur MARTIN', differeMs: 1 });
+  await new Promise((ok) => setTimeout(ok, 600));
+  assert.equal(faits.length, 1);
+  assert.match(deposes[0].titre, /Travail terminé : le point sur MARTIN/);
+});
