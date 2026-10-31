@@ -134,7 +134,7 @@ try {
         r.barre = /MOREAU/.test((document.getElementById('pr-barre-dossier') || {}).textContent || '');
         allerPagePreemption('questions'); r.questions = vue();
         allerPagePreemption('rendu'); r.rendu = vue();
-        r.synthese = document.querySelectorAll('#pr-synthese .pr-tuile').length;
+        r.synthese = document.querySelectorAll('#pr-synthese .pr-ligne').length + (document.querySelector('#pr-droits-compte') ? 1 : 0);  // ligne « DPU renforcé » + nombre de droits dans le titre (tuiles retirées : doublons, étude 31/10)
         reinitialiserPreemption();
         definirOnglet('calculateur');
         await new Promise(r2 => setTimeout(r2, 50));
@@ -148,7 +148,7 @@ try {
         r.sansDossier = !document.getElementById('onglet-calculateur').classList.contains('outil-en-accueil');
         return r;
       });
-      verifier(pr && pr.accueil === 'dossier' && pr.carte && pr.apres === 'parcelles' && pr.barre && pr.questions === 'parcelles' && pr.rendu === 'rendu' && pr.synthese === 4,
+      verifier(pr && pr.accueil === 'dossier' && pr.carte && pr.apres === 'parcelles' && pr.barre && pr.questions === 'parcelles' && pr.rendu === 'rendu' && pr.synthese === 2,
         `urbanisme en étapes : dossier → parcelles → questions → contrôle (${JSON.stringify(pr)})`);
       verifier(pr && pr.accueilProvision && pr.sansDossier && pr.sansNavigation, `outils : premier écran « Quel dossier ? », puis « Continuer sans dossier » (${JSON.stringify(pr && { a: pr.accueilProvision, s: pr.sansDossier })})`);
       // Tâches à venir (13/10) : visibles par le lien de la carte « Aujourd'hui », listées dans la grande fenêtre de toutes les tâches.
