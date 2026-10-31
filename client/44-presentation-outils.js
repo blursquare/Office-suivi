@@ -174,6 +174,7 @@
       if (step) step.toggleAttribute('data-avant-suite', suite);
       suite = suite && fait;
       if (step) step.toggleAttribute('data-suite', suite);
+      if (step) step.toggleAttribute('data-trait', suite);
       if (step && step.completed !== fait) {
         step.completed = fait;
         // Étude 18/10 : la pastille de l'étape terminée se coche d'un petit tracé (seulement quand elle se termine sous les yeux).
@@ -298,3 +299,55 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { renderTuilesPieces('af'); renderTuilesPieces('prorata'); });
   else { renderTuilesPieces('af'); renderTuilesPieces('prorata'); }
+
+// Trait entre les numéros d'étape (étude 31/10 : « l'animation entre le trait des numéros d'étape ne fonctionne pas »). Web Awesome
+// dessine chaque liaison en DEUX moitiés, une par étape (connector-end de l'étape k, connector-start de k + 1), sous le même nom de
+// partie : un style posé sur ::part(connector) remplissait les deux moitiés d'une même étape — d'où un demi-trait vers l'étape en cours —
+// et une barre recréée à chaque étape n'avait rien à animer. Ici : la liaison k → k + 1 se remplit quand les deux étapes portent
+// `data-trait` (atteinte, ou faite dans la suite pour les outils), moitié de gauche puis moitié de droite, en partant de l'état d'avant
+// de la même barre (gardé par son libellé) quand elle a été recréée.
+var traitsEtapesVus = new Map();
+function poserTraitsEtapes(stepper) {
+  if (!stepper || !stepper.isConnected) return;
+  const steps = [...stepper.querySelectorAll('wa-step')];
+  if (!steps.length) return;
+  const etat = steps.map(s => s.hasAttribute('data-trait'));
+  const cle = stepper.getAttribute('label') || '';
+  const avant = traitsEtapesVus.get(cle);
+  traitsEtapesVus.set(cle, etat);
+  const calme = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const pose = (e, anime) => steps.forEach((s, k) => {
+    const racine = s.shadowRoot;
+    if (!racine) return;
+    [['.connector-start', k > 0 && e[k - 1] && e[k], '200ms'], ['.connector-end', k < steps.length - 1 && e[k] && e[k + 1], '0ms']].forEach(([sel, plein, delai]) => {
+      const el = racine.querySelector(sel);
+      if (!el) return;
+      el.style.backgroundImage = 'linear-gradient(var(--focus), var(--focus))';
+      el.style.backgroundRepeat = 'no-repeat';
+      el.style.transition = anime && !calme ? `background-size 200ms var(--anim-courbe) ${plein ? delai : (delai === '0ms' ? '200ms' : '0ms')}` : 'none';
+      el.style.backgroundSize = plein ? '100% 100%' : '0% 100%';
+    });
+  });
+  Promise.all(steps.map(s => (window.customElements ? customElements.whenDefined('wa-step') : Promise.resolve()).then(() => s.updateComplete))).then(() => {
+    const depart = avant && avant.length === etat.length ? avant : etat;
+    pose(depart, false);
+    requestAnimationFrame(() => requestAnimationFrame(() => pose(etat, true)));
+  });
+}
+
+// Toute barre d'étapes de CLAIRE (outils, Contrôle de l'urbanisme, Constitution de dossier) : posée à son arrivée et à chaque changement.
+if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined' && document.documentElement) {
+  const enAttente = new Set();
+  let planifie = false;
+  new MutationObserver(liste => {
+    liste.forEach(m => {
+      const cible = m.target && m.target.closest ? m.target.closest('wa-stepper') : null;
+      if (cible) enAttente.add(cible);
+      (m.addedNodes || []).forEach(n => { if (n.querySelectorAll) { if (n.matches && n.matches('wa-stepper')) enAttente.add(n); n.querySelectorAll('wa-stepper').forEach(x => enAttente.add(x)); } });
+    });
+    if (enAttente.size && !planifie) {
+      planifie = true;
+      setTimeout(() => { planifie = false; const l = [...enAttente]; enAttente.clear(); l.forEach(poserTraitsEtapes); }, 0);
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-trait'] });
+}

@@ -10558,10 +10558,9 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .anim-etape-coche { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 .anim-etape-coche svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .anim-etape-coche.anim-trace path { stroke-dasharray: 1; animation: anim-trace 250ms var(--anim-courbe) both; }
+/* Traits entre les numéros d'étape : couleur neutre ici, le remplissage est posé moitié par moitié par poserTraitsEtapes (client/44). */
+wa-stepper.outil-sommaire wa-step::part(connector) { background-color: var(--line); }
 @keyframes anim-trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-wa-stepper.outil-sommaire wa-step::part(connector) { background-image: linear-gradient(var(--focus), var(--focus)); background-repeat: no-repeat; background-size: 0% 100%; transition: background-size 250ms var(--anim-courbe); }
-wa-stepper.outil-sommaire wa-step[completed][data-suite]::part(connector) { background-size: 100% 100%; }
-wa-stepper.outil-sommaire wa-step:not([data-avant-suite])::part(connector) { background-color: var(--line); }
 
 /* 4. Tâche cochée dans « Aujourd'hui » : le cercle se remplit, la ligne se barre d'un trait, le compteur change en glissant. */
 .ja.fait.vient-de-finir .ja-coche { animation: anim-remplit 220ms var(--anim-courbe); }
@@ -10602,7 +10601,6 @@ wa-stepper.outil-sommaire wa-step:not([data-avant-suite])::part(connector) { bac
   .app-main > .drawer-overlay .drawer-panneau, .sidebar-sousmenu:not(.ferme) > *,
   .piece-tuile.anim-pose .piece-tuile-etat, .piece-tuile.anim-pose .piece-tuile-icone { animation: none; }
   .ja.fait.vient-de-finir .ja-titre { text-decoration: line-through; text-decoration-color: var(--line); background: none; }
-  wa-stepper.outil-sommaire wa-step::part(connector) { transition: none; }
   .pa-barre > span, .pa-section > summary > .icone:last-child, .pb-modifier > summary > .icone:last-child { transition: none; }
   .pieces-depot.survol, .pdf-dropzone.dragover { transform: none; }
   .pieces-depot, .pdf-dropzone { transition: background-color var(--anim-duree); }
