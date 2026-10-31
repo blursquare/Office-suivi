@@ -149,5 +149,6 @@
   "147-inscriptions-bien.js",
   "148-decompte-vendeur.js",
   "149-tache-donnee.js",
-  "150-gif.js"
+  "150-gif.js",
+  "151-gestes-fiche-agent.js"
 ]

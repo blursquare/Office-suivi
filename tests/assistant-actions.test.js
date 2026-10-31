@@ -203,3 +203,26 @@ test('demander à un collègue (0.363.0) : la demande passe par la conversation 
   assert.match(app.texteDemandeCollaborateur({ texte: 'Appeler la banque', date: '2026-10-28' }, d), /^Appeler la banque — VTE - EXEMPLE \/ ESSAI \(pour le 28\/10\/2026\)$|^Appeler la banque — VTE - EXEMPLE \/ ESSAI \(pour le 28 octobre 2026\)$/);
   assert.equal(app.texteDemandeCollaborateur({ texte: '  Appeler la banque ', date: '' }, null), 'Appeler la banque');
 });
+
+test('gestes de la fiche par l’agent (étude 31/10 : « que Claude utilise CLAIRE comme moi ») : carte claire, refus quand le geste n’a pas lieu d’être', () => {
+  const app = chargerApplication();
+  const d = { id: 'd9', nom: 'MOREL / PETIT', typeVente: 'maison', historique: [], pieces: {}, piecesPersonnalisees: [{ cle: 'perso-a', label: 'Plan du géomètre' }],
+    parties: [{ role: 'VENDEUR', nom: 'MOREL', prenom: 'Anne' }, null, { role: 'ACQUEREUR', nom: 'PETIT', prenom: 'Luc' }],
+    analyseJuridique: { engagements: [{ texte: 'Fournir le diagnostic', fait: true }, { texte: 'Autre', fait: false }] } };
+  const p = (e) => app.preparerActionDossierAgent(e, d);
+  assert.match(p({ action: 'piece_ajouter', libelle: 'Attestation décennale' }).description, /Ajouter la pièce « Attestation décennale »/);
+  assert.ok(p({ action: 'piece_ajouter', libelle: 'plan du geometre' }).erreur, 'déjà dans la checklist');
+  assert.match(p({ action: 'piece_retirer', piece: 'Plan du géomètre' }).description, /Retirer la pièce/);
+  assert.ok(p({ action: 'piece_retirer', piece: 'Titre de propriété' }).erreur, 'seule une pièce ajoutée à la main');
+  assert.match(p({ action: 'engagement_defait', numero: 1 }).description, /Décocher/);
+  assert.ok(p({ action: 'engagement_defait', numero: 2 }).erreur);
+  assert.match(p({ action: 'type_vente', valeur: 'copropriete' }).description, /copropriété/);
+  assert.ok(p({ action: 'type_vente', valeur: 'maison' }).erreur, 'déjà ce type');
+  assert.ok(p({ action: 'fonds_annuler_validation' }).erreur);
+  assert.ok(p({ action: 'authentic_maj', valeur: 'accepter' }).erreur, 'rien en attente');
+  const r = p({ action: 'partie_retirer', numero: 2 });
+  assert.match(r.description, /Luc PETIT/, 'même numérotation que lire_dossier (sans les vides)');
+  assert.equal(r.index, 2);
+  assert.ok(p({ action: 'succession_champ', libelle: 'type', valeur: 'x' }).erreur, 'pas une succession');
+  assert.ok(p({ action: 'inconnue' }).erreur);
+});

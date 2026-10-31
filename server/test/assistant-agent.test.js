@@ -1163,3 +1163,13 @@ test('donner_tache (étude 30/10) : lister ou donner, collaborateur dans une lis
   assert.deepEqual(outil.input_schema.properties.collaborateur.enum, ['', 'Bastien', 'Julie', 'Jérémy', 'Sophie']);
   assert.deepEqual(Object.keys(outil.input_schema.properties).sort(), ['collaborateur', 'mode', 'tache_id']);
 });
+
+test('lire_dossier (31/10) : pièces ajoutées à la main et nouveaux gestes de la fiche — rien de nominatif ne part', () => {
+  const m = masquerValeur({ pieces_ajoutees_a_la_main: ['Acte de naissance de Paul FOURNIER', 'Attestation Léa GAUTHIER'], type_vente: 'maison', authentic: { mises_a_jour_en_attente: 2 } }, motsSensiblesDossiers(D), new Map());
+  assert.doesNotMatch(JSON.stringify(m), SECRETS);
+  assert.equal(m.authentic.mises_a_jour_en_attente, 2);
+  const outil = OUTILS_AGENT.find(o => o.name === 'action_dossier');
+  ['piece_ajouter', 'piece_non_recue', 'type_vente', 'authentic_maj', 'partie_retirer', 'succession_champ'].forEach(a => assert.ok(outil.input_schema.properties.action.enum.includes(a), a));
+  const lot = OUTILS_AGENT.find(o => o.name === 'actions_en_lot');
+  assert.deepEqual(lot.input_schema.properties.actions.items.properties.action.enum, outil.input_schema.properties.action.enum);
+});

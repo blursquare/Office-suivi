@@ -1747,11 +1747,12 @@
     return fichiers.find(f => correspondFormeNom(texteRecherche, tokensNomFichier(normaliserNomPourMotif(f.nom)))) || null;
   }
 
-  async function ajouterPiecePersonnalisee(dossierId) {
+  async function ajouterPiecePersonnalisee(dossierId, labelDonne) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d) return;
-    const input = document.getElementById('nouvelle-piece-label');
-    const label = input ? input.value.trim() : '';
+    // Libellé donné : « Demander à CLAIRE » (action_dossier piece_ajouter), même geste que le champ de la fiche.
+    const input = labelDonne ? null : document.getElementById('nouvelle-piece-label');
+    const label = labelDonne ? String(labelDonne).trim().slice(0, 120) : (input ? input.value.trim() : '');
     if (!label) { if (input) input.focus(); return; }
     d.piecesPersonnalisees = d.piecesPersonnalisees || [];
     const cle = 'perso-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

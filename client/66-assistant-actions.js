@@ -199,7 +199,7 @@
         return d.nasDossier ? { description: `Revérifier le dossier du NAS (pièces, offre de prêt)${dossier}.` } : { erreur: 'dossier non relié au NAS' };
       case 'desarchiver':
         return d.archive ? { description: `Désarchiver le dossier${dossier}.` } : { erreur: 'le dossier n’est pas archivé' };
-      default: return { erreur: 'action inconnue' };
+      default: return preparerGesteFicheAgent(e, d, dossier);
     }
   }
 
@@ -284,7 +284,7 @@
       case 'tache_executer': avecConfirmationAccordee(() => executerActionJour(e.tache_id)); return;
       case 'nas_reverifier': verifierDossierLocal(d.id, true); return;
       case 'desarchiver': archiverDossier(d.id, false); return;
-      default:
+      default: executerGesteFicheAgent(e, d, prep);
     }
   }
 

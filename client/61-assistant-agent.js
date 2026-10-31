@@ -156,7 +156,10 @@
       engagements_du_vendeur: sur(() => ((d.analyseJuridique && d.analyseJuridique.engagements) || []).map(e => ({ texte: String(e.texte || e.libelle || '').slice(0, 300), fait: !!e.fait })), []),
       fonds_confirmes_au_client_le: d.receptionFondsConfirmeeLe || '',
       urbanisme: sur(() => droitsPreemptionFiche(d.preemption).map(x => ({ droit: x.titre || x.cle, statut: x.statut, motif: x.motif || '' })), []),
-      authentic: sur(() => d.authentic ? { reference: d.referenceAuthentic || '', acte: d.authentic.acte || null } : null, null),
+      authentic: sur(() => d.authentic ? { reference: d.referenceAuthentic || '', acte: d.authentic.acte || null, mises_a_jour_en_attente: majsEnAttenteAuthentic(d).length } : null, null),
+      type_vente: estSuccession(d) ? '' : d.typeVente || '',
+      pieces_ajoutees_a_la_main: (d.piecesPersonnalisees || []).map(p => p.label),
+      fonds_valides_a_la_main_le: d.fondsValidesLe || '',
       // Vision globale (étude 26/10 : « une vision globale d'un dossier, force de proposition ») : ce qui compte en un coup d'œil, calculé comme les écrans.
       vue_d_ensemble: sur(() => vueDEnsembleDossierAgent(d), null),
       // Vocabulaire fermé (date + sorte), jamais le texte libre de l'historique : un nom absent des fiches en tête d'un texte court passait (relecture 0.386.1).
