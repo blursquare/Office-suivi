@@ -249,7 +249,7 @@ function piecesDecoupageCompromis(pages, options) {
   const sansCompromis = mode !== 'compromis' && mode !== 'entier';
   segments.forEach(seg => {
     if (seg.sorte === 'compromis') {
-      if (seg.pages.length) ajouter({ sorte: 'compromis', label: 'Compromis signé', nom: nomPieceDecoupage('', 'compromis'), pages: seg.pages, rubriques: ['sru'], diagnostic: '', numero: 0, libelleLu: '' });
+      if (seg.pages.length) ajouter({ sorte: 'compromis', label: 'Compromis signé', nom: mode === 'entier' ? 'Compromis signé' : nomPieceDecoupage('', 'compromis'), pages: seg.pages, rubriques: ['sru'], diagnostic: '', numero: 0, libelleLu: '' });
       return;
     }
     const premiere = seg.pages.map(p => pages[p - 1]).find(t => lignesPageDecoupage(t).length >= 3) || '';
@@ -436,6 +436,7 @@ async function dcLire(fichier, nom, jeton, depose) {
     }
   } finally { try { pdf.destroy(); } catch (_) { /* déjà fermé */ } }
   if (jeton !== dcEtat.jeton) return;
+  if (dcEtat.range) throw new Error('rangement en cours : rouvrez le document une fois qu’il est fini');
   const r = piecesDecoupageCompromis(pages, { nomFichier: nom || fichier.name || '' });
   dcFermerApercu(dcEtat.source);
   dcEtat.source = { nom: nom || fichier.name || 'compromis.pdf', octets, images: new Map(), faites: new Map(), depose: !!depose };
@@ -444,6 +445,7 @@ async function dcLire(fichier, nom, jeton, depose) {
   dcEtat.separateurs = r.separateurs;
   dcEtat.gardes = r.gardes || [];
   dcEtat.rotations = {};
+  dcEtat.loupe = false;
   dcEtat.mode = r.mode;
   dcEtat.choisie = dcEtat.pieces[0] ? dcEtat.pieces[0].id : '';
   dcEtat.pageVue = dcEtat.pieces[0] ? dcEtat.pieces[0].pages[0] : 0;
@@ -507,10 +509,11 @@ function dcAccueil() {
 // Vente où ranger un PDF déposé à la main : le découpage est gardé, les pièces redeviennent « à ranger » dans cette vente.
 function dcRattacher(id) {
   if (dcEtat.range) { afficherToast('Rangement en cours : attendez qu’il soit fini.', 'OK', null); renderDecoupage(); return; }
+  if (dcEtat.lecture === 'lecture') { afficherToast('Lecture en cours : choisissez la vente une fois qu’elle est finie.', 'OK', null); renderDecoupage(); return; }
   const d = dossiers.find(x => x && x.id === id);
   dcEtat.dossierId = decoupagePossible(d) ? d.id : '';
-  dcEtat.pieces.forEach(p => { p.rangee = ''; });
-  dcEtat.jeton++;
+  // Une pièce rangée le reste pour sa vente : un aller-retour dans la liste ne la refait pas en « (2) ».
+  dcEtat.pieces.forEach(p => { if (p.rangee && p.rangeeDans !== dcEtat.dossierId) { p.rangeeAilleurs = { dans: p.rangeeDans, chemin: p.rangee }; p.rangee = ''; } else if (!p.rangee && p.rangeeAilleurs && p.rangeeAilleurs.dans === dcEtat.dossierId) { p.rangee = p.rangeeAilleurs.chemin; p.rangeeDans = dcEtat.dossierId; p.rangeeAilleurs = null; } });
   renderDecoupage();
 }
 
@@ -625,18 +628,27 @@ function dcPageVoisine(sens) {
   if (l[j] !== dcEtat.pageVue) dcVoirPage(l[j]);
 }
 
-function dcOuvrirLoupe() { if (dcEtat.pageVue) { dcEtat.loupe = true; renderDecoupage(); } }
+function dcOuvrirLoupe() {
+  if (!dcEtat.pageVue) return;
+  dcEtat.loupe = true;
+  renderDecoupage();
+  const fermer = document.querySelector('.dc-loupe wa-button:last-of-type');
+  // Un wa-button juste rendu ne prend le focus qu'une fois prêt.
+  if (fermer && fermer.updateComplete) fermer.updateComplete.then(() => { if (fermer.isConnected) fermer.focus(); }).catch(() => { /* rien */ });
+}
 function dcFermerLoupe() { if (dcEtat.loupe) { dcEtat.loupe = false; renderDecoupage(); } }
 
-// Clavier sur l'écran de l'outil, hors d'un champ : ← → changent de page, Échap ferme le plein écran.
+// Clavier sur l'écran de l'outil, hors d'un champ : ← → changent de page (↑ ↓ font défiler l'écran), Échap ferme le plein écran.
 document.addEventListener('keydown', ev => {
   if (typeof ecranAffiche !== 'function' || !ecranAffiche('decoupage') || !dcEtat.source) return;
   const cible = ev.target;
   if (cible && (/^(input|select|textarea)$/i.test(cible.tagName || '') || cible.isContentEditable)) return;
-  if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
-  if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') { ev.preventDefault(); dcPageVoisine(-1); }
-  else if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') { ev.preventDefault(); dcPageVoisine(1); }
-  else if (ev.key === 'Escape' && dcEtat.loupe) { ev.preventDefault(); dcFermerLoupe(); }
+  if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.defaultPrevented) return;
+  // Une fenêtre ouverte par-dessus (confirmation…) garde le clavier.
+  if (Array.from(document.querySelectorAll('[role="dialog"], [id$="-overlay"]')).some(el => !el.classList.contains('dc-loupe') && el.getClientRects().length)) return;
+  if (ev.key === 'ArrowLeft') { ev.preventDefault(); dcPageVoisine(-1); }
+  else if (ev.key === 'ArrowRight') { ev.preventDefault(); dcPageVoisine(1); }
+  else if (ev.key === 'Escape' && dcEtat.loupe) { ev.preventDefault(); ev.stopPropagation(); dcFermerLoupe(); }
 });
 
 // Correction d'un clic : une page de la pièce retirée, ou la page voisine (grisée) ajoutée.
@@ -720,6 +732,7 @@ function dcTournerPiece(id) {
 var DC_LARGEUR_VIGNETTE = 160;
 var DC_LARGEUR_GRANDE = 900;
 var DC_LARGEUR_LOUPE = 1600;
+var DC_IMAGES_GARDEES = 160;
 
 function dcFermerApercu(source) {
   if (!source) return;
@@ -745,6 +758,8 @@ function dcImagePage(source, n, largeur, rot) {
     page.cleanup();
     const url = canvas.toDataURL('image/jpeg', 0.82);
     source.faites.set(cle, url);
+    // Cache borné : les images les plus anciennes sont oubliées (redessinées si on y revient).
+    while (source.faites.size > DC_IMAGES_GARDEES) { const vieille = source.faites.keys().next().value; source.faites.delete(vieille); source.images.delete(vieille); }
     return url;
   });
   promesse.catch(() => source.images.delete(cle));
@@ -785,9 +800,10 @@ function dcBaliseImage(n, largeur, classe) {
   return `<img class="${classe}" alt="Page ${n}" data-dc-page="${n}" data-dc-largeur="${largeur}" data-dc-rot="${rot}"${fait ? ` src="${escapeAttr(fait)}"` : ''}>`;
 }
 
-// Date du dernier découpage rangé pour un dossier (historique « Compromis découpé… » / « Document découpé… »), '' sinon. Pure.
+// Date du dernier découpage du COMPROMIS rangé pour un dossier (historique « Compromis découpé… » ; un dossier de diagnostics ou des
+// annexes déposés seuls font « Document découpé », qui ne compte pas), '' sinon. Pure.
 function dateDecoupageDossier(d) {
-  const l = ((d && d.historique) || []).filter(h => h && /^(Compromis|Document) découpé/.test(String(h.texte || '')));
+  const l = ((d && d.historique) || []).filter(h => h && /^Compromis découpé/.test(String(h.texte || '')));
   return l.length ? String(l[l.length - 1].date || '') : '';
 }
 
@@ -864,10 +880,10 @@ function dcRendreCorps() {
         ${choixDossier}
         <label class="dc-choisir">${fichier('dc-fichier-barre')}<wa-button appearance="outlined" size="s" type="button" onclick="document.getElementById('dc-fichier-barre').click()">${icone('upload')}Autre PDF</wa-button></label>
         <span class="aut-barre-actions">
-          <wa-button variant="brand" size="s" type="button"${d && d.nasDossier && aRanger ? '' : ' disabled'}${dcEtat.range ? ' loading' : ''} title="${titreRanger}" onclick="rangerDecoupage()">${icone('folder')}Ranger dans le dossier${aRanger ? ` (${aRanger})` : ''}</wa-button>
+          <wa-button variant="brand" size="s" type="button"${d && d.nasDossier && aRanger && dcEtat.lecture !== 'lecture' ? '' : ' disabled'}${dcEtat.range ? ' loading' : ''} title="${titreRanger}" onclick="rangerDecoupage()">${icone('folder')}Ranger dans le dossier${aRanger ? ` (${aRanger})` : ''}</wa-button>
         </span>
       </div>`;
-  const message = dcEtat.message ? `<p class="hint">${dcEtat.lecture === 'lecture' ? icone('spinner', null, true) + ' ' : ''}${escapeHtml(dcEtat.message)}${dcEtat.source ? ` — « ${escapeHtml(dcEtat.source.nom)} »` : ''}</p>` : '';
+  const message = dcEtat.message ? `<p class="hint">${dcEtat.lecture === 'lecture' ? icone('spinner', null, true) + ' ' : ''}${escapeHtml(dcEtat.message)}${dcEtat.source && dcEtat.lecture === 'lu' ? ` — « ${escapeHtml(dcEtat.source.nom)} »` : ''}</p>` : '';
   if (!dcEtat.pieces.length) { carte.innerHTML = `${entete}<div class="cst-corps">${barre}${message}</div>`; return; }
   const resume = [`${dcEtat.pieces.length} pièce(s)`, aVerifier ? `<span class="dc-a-verifier">${aVerifier} à vérifier</span>` : '', rangees ? `${rangees} rangée(s)` : ''].filter(Boolean).join(' · ');
   const liste = dcEtat.pieces.map(p => {
@@ -913,7 +929,7 @@ function dcLoupe() {
   const l = dcPagesParcourues();
   const i = l.indexOf(n);
   const garde = dcEtat.gardes.includes(n);
-  return `<div class="dc-loupe" role="dialog" aria-label="Page ${n} en plein écran" onclick="if (event.target === this) dcFermerLoupe()">
+  return `<div class="dc-loupe" role="dialog" aria-modal="true" aria-label="Page ${n} en plein écran" onclick="if (event.target === this) dcFermerLoupe()">
       <div class="dc-loupe-barre">
         <span class="dc-loupe-titre">${escapeHtml(p.nom)} · page ${n} / ${dcEtat.pages.length}${p.pages.includes(n) ? '' : garde ? ' · page de garde, jamais reprise' : ' · hors de cette pièce'}</span>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page précédente"${i > 0 ? '' : ' disabled'} onclick="dcPageVoisine(-1)">${icone('chevron-left')}</wa-button>
@@ -982,7 +998,7 @@ function dcDetailPiece() {
             ${garde(n) ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="dcBasculerPage('${ido}', ${n})">${icone(dedans ? 'x' : 'plus')}${dedans ? 'Retirer' : 'Ajouter'}</wa-button>`}
           </span>
         </div>
-        <button type="button" class="dc-grande-page${dedans ? '' : ' dc-hors'}" onclick="dcOuvrirLoupe()" title="Voir la page ${n} en plein écran">${dcBaliseImage(n, DC_LARGEUR_GRANDE, 'dc-image-grande')}<span class="dc-grande-loupe" aria-hidden="true">${icone('maximize')}</span></button>
+        <button type="button" class="dc-grande-page${dedans ? '' : ' dc-hors'}" onclick="dcOuvrirLoupe()" title="Voir la page ${n} en plein écran">${dcEtat.loupe ? '<span class="dc-image-grande"></span>' : dcBaliseImage(n, DC_LARGEUR_GRANDE, 'dc-image-grande')}<span class="dc-grande-loupe" aria-hidden="true">${icone('maximize')}</span></button>
       </div>
     </div>
     <div class="dc-cote">
@@ -1032,10 +1048,12 @@ async function telechargerPieceDecoupage(id) {
 async function rangerDecoupage(ids) {
   const d = dcDossier();
   if (!d || !d.nasDossier || dcEtat.range || !dcEtat.source) return { ok: false, rangees: 0 };
+  if (dcEtat.lecture === 'lecture') { afficherToast('Lecture d’un document en cours : rangez une fois qu’elle est finie.', 'OK', null); return { ok: false, rangees: 0, erreur: 'lecture en cours' }; }
   // État figé (audit 0.411.0, B2/B3) : un changement de dossier pendant le rangement ne touche ni le nouvel état ni les pièces rangées ;
   // `ids` = les pièces annoncées sur la carte « Autoriser ».
   const etat = dcEtat;
-  etat.source.rotations = Object.assign({}, etat.rotations);
+  const source = etat.source;
+  source.rotations = Object.assign({}, etat.rotations);
   const jeton = etat.jeton;
   const aFaire = etat.pieces.filter(p => p.inclure && !p.rangee && p.pages.length && (!ids || ids.includes(p.id)));
   etat.range = true;
@@ -1045,7 +1063,8 @@ async function rangerDecoupage(ids) {
     if (jeton !== dcEtat.jeton) break;
     try {
       const avant = p.saisie + '|' + p.nom;
-      const blob = await pdfPieceDecoupage(p, etat.source);
+      if (etat.source !== source) throw new Error('un autre document a été ouvert : non rangée');
+      const blob = await pdfPieceDecoupage(p, source);
       const r = await fetchAvecAuth('/api/nas/deposer-annexe', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dossierId: d.id, nom: p.nom, contenu: await base64DepuisBlob(blob), rubriques: p.rubriques || [] }) });
       const j = await r.json().catch(() => ({}));
@@ -1053,6 +1072,7 @@ async function rangerDecoupage(ids) {
       // Corrigée entre-temps (ne devrait plus arriver) : elle reste « à ranger ».
       if (avant !== p.saisie + '|' + p.nom) throw new Error('corrigée pendant le rangement, à ranger de nouveau');
       p.rangee = String(j.chemin || '').split(/[\\/]/).slice(-2).join(' › ') || 'rangée';
+      p.rangeeDans = d.id;
       rangees++;
     } catch (e) { echecs.push(`${p.nom} : ${e && e.message ? e.message : 'erreur'}`); }
     if (jeton === dcEtat.jeton) renderDecoupage();
@@ -1083,7 +1103,10 @@ function appliquerCorrectionsDecoupageAgent(liste) {
     }
     if (typeof c.rubrique === 'string' && RUBRIQUES_DECOUPAGE.some(r => r[0] === c.rubrique)) { p.rubrique = c.rubrique; p.rubriques = c.rubrique ? [c.rubrique] : []; p.modifiee = true; p.rangee = ''; fait.push('rubrique ' + libelleRubriqueDecoupage(c.rubrique)); }
     if (typeof c.ranger === 'boolean') { p.inclure = c.ranger; p.modifiee = true; if (p.sorte === 'diagnostic') dcRecalculerTousDiagnostics(); fait.push(c.ranger ? 'à ranger' : 'pas rangée'); }
-    if ([90, 180, 270].includes(c.tourner)) { dcTourner(p.pages.slice(), c.tourner); fait.push(`tournée de ${c.tourner}°`); }
+    if ([90, 180, 270].includes(c.tourner)) {
+      const lu = c.tourner_pages ? pagesDepuisSaisieDecoupage(c.tourner_pages, dcEtat.pages.length) : p.pages.slice();
+      if (lu) { dcTourner(lu, c.tourner); fait.push(`pages ${saisieDepuisPagesDecoupage(lu)} tournées de ${c.tourner}°`); } else fait.push('pages à tourner illisibles : rien tourné');
+    }
     if (Number.isInteger(c.couper_a)) {
       const coupe = scinderPagesDecoupage(p.pages, c.couper_a);
       if (coupe) {
@@ -1120,6 +1143,7 @@ async function decouperCompromisAgent(e) {
   const corrections = Array.isArray(e.corrections) ? appliquerCorrectionsDecoupageAgent(e.corrections) : null;
   const sortie = {
     dossier_id: d.id, pages_total: dcEtat.pages.length, separations_trouvees: dcEtat.separateurs,
+    rotations: Object.keys(dcEtat.rotations).map(n => ({ page: Number(n), degres: dcEtat.rotations[n] })),
     pieces: dcEtat.pieces.map(p => ({ id: p.id, sorte: p.sorte, titre_piece: titrePieceAgentDecoupage(p), pages: p.saisie, nb_pages: p.pages.length, rubrique: libelleRubriqueDecoupage(p.rubrique), ranger: !!p.inclure, rangee: !!p.rangee, reconnue: p.reconnu !== false })),
     dossier_nas_relie: !!d.nasDossier,
     consigne: 'Outil « Découper le compromis » ouvert sur le poste : l’utilisateur y voit chaque pièce en aperçu, y corrige noms, pages et rubriques, puis « Ranger dans le dossier ».'
@@ -1131,9 +1155,10 @@ async function decouperCompromisAgent(e) {
     if (!d.nasDossier) return Object.assign(sortie, { rangement: 'dossier non relié au NAS : rien rangé' });
     if (!n) return Object.assign(sortie, { rangement: 'rien à ranger' });
     if (dcEtat.range) return Object.assign(sortie, { rangement: 'un rangement est déjà en cours' });
+    const sourceAvant = dcEtat.source;
     const ok = await demanderAutorisationAgent(`Ranger ${n} pièce(s) tirée(s) du compromis (${libelleDossierAffiche(d)}) dans le dossier du NAS ? Ce sont des copies, l’original reste tel quel.`);
     if (!ok) return Object.assign(sortie, { rangement: 'refusé par l’utilisateur' });
-    if (dcEtat.dossierId !== d.id) return Object.assign(sortie, { rangement: 'un autre dossier a été ouvert entre-temps : rien rangé' });
+    if (dcEtat.dossierId !== d.id || dcEtat.source !== sourceAvant || dcEtat.lecture === 'lecture') return Object.assign(sortie, { rangement: 'un autre dossier ou un autre document a été ouvert entre-temps : rien rangé' });
     const r = await rangerDecoupage(ids);
     sortie.rangement = `${r.rangees} rangée(s)${r.echecs ? `, ${r.echecs} échec(s)` : ''}`;
   }

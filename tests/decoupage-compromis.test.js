@@ -218,12 +218,12 @@ test('31/10 : autres documents — dossier de diagnostics, annexes sans compromi
   assert.equal(seul.pieces.length, 1, 'un seul diagnostic : pas de PDF « tous les diagnostics » en double');
   const entier = app.piecesDecoupageCompromis([corps('COMPROMIS DE VENTE'), corps('Dossier de Diagnostics Techniques'), corps('Constat de risque d\'exposition au Plomb')]);
   assert.equal(entier.mode, 'entier');
-  assert.equal(entier.pieces.map(p => `${p.sorte}|${p.pages.join('-')}`).join(','), 'compromis|1-2-3', 'un compromis sans séparation : rien n’est deviné');
+  assert.equal(entier.pieces.map(p => `${p.sorte}|${p.nom}|${p.pages.join('-')}`).join(','), 'compromis|Compromis signé|1-2-3', 'un compromis sans séparation : rien n’est deviné, nommé sans « sans les annexes »');
   assert.ok(/aucune page « Annexe n° »/.test(app.messageLectureDecoupage(entier, 3)));
   assert.ok(/dossier de diagnostics/.test(app.messageLectureDecoupage(ddt, 4)));
 });
 
 test('31/10 : accueil — date du dernier découpage rangé', () => {
   assert.equal(app.dateDecoupageDossier({ historique: [{ date: '2026-10-20T10:00:00Z', texte: 'Dossier créé' }] }), '');
-  assert.equal(app.dateDecoupageDossier({ historique: [{ date: '2026-10-20T10:00:00Z', texte: 'Compromis découpé : 3 pièce(s) rangée(s)' }, { date: '2026-10-31T10:00:00Z', texte: 'Document découpé : 1 pièce(s)' }] }), '2026-10-31T10:00:00Z');
+  assert.equal(app.dateDecoupageDossier({ historique: [{ date: '2026-10-20T10:00:00Z', texte: 'Compromis découpé : 3 pièce(s) rangée(s)' }, { date: '2026-10-31T10:00:00Z', texte: 'Document découpé : 1 pièce(s)' }] }), '2026-10-20T10:00:00Z', 'un dossier de diagnostics découpé ne compte pas pour le compromis');
 });

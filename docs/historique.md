@@ -23553,3 +23553,5 @@ les aperçus de petites pages à droite les uns sur les autres dans une sidebar 
   l'accent) ; la fenêtre défile juste ce qu'il faut pour montrer la page en grand entière (`dcMontrerPageVue`) ; un clic sur la page
   en grand l'ouvre en plein écran (`dcLoupe`, 1 600 px de large : ‹ › , ↻, ×) ; ← → (et ↑ ↓) parcourent les pages des vignettes —
   la pièce et ses deux voisines —, hors d'un champ de saisie ; Échap ferme le plein écran.
+- Audit 0.412.0 (`docs/audits/2026-10-31-0.412.0.md`) : un point Haut (rangement pendant la lecture d'un autre PDF : pages de
+  l'ancien découpage copiées du nouveau document) et les points moyens et bas corrigés le même soir, voir « Suites données ».
