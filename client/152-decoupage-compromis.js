@@ -292,6 +292,7 @@ function saisieDepuisPagesDecoupage(pages) {
 // Ajoute ou retire une page d'une pièce (correction d'un clic sur l'aperçu) ; jamais une pièce vide. Pure.
 function basculerPageDecoupage(pages, n) {
   const l = (pages || []).slice();
+  if (!Number.isInteger(n) || n < 1) return l;
   const i = l.indexOf(n);
   if (i >= 0) { if (l.length === 1) return l; l.splice(i, 1); } else l.push(n);
   return l.sort((a, b) => a - b);
@@ -300,6 +301,7 @@ function basculerPageDecoupage(pages, n) {
 // Coupe une pièce à la page n (deux annexes réunies par erreur) : [pages avant n, pages à partir de n] ; null si n est sa première
 // page ou n'en fait pas partie. Pure.
 function scinderPagesDecoupage(pages, n) {
+  if (!Number.isInteger(n)) return null;
   const l = (pages || []).slice().sort((a, b) => a - b);
   if (!l.includes(n) || l[0] === n) return null;
   return [l.filter(p => p < n), l.filter(p => p >= n)];
@@ -442,9 +444,17 @@ function ouvrirDecoupageDepuisFiche(id) {
 
 function dcPiece(id) { return dcEtat.pieces.find(p => p.id === id); }
 
+// Pendant un rangement, rien ne se corrige : la pièce en cours d'envoi serait marquée rangée avec ses anciennes pages.
+function dcRangementEnCours() {
+  if (!dcEtat.range) return false;
+  afficherToast('Rangement en cours : corrigez une fois qu’il est fini.', 'OK', null);
+  return true;
+}
+
 function dcChanger(id, champ, valeur) {
   const p = dcPiece(id);
   if (!p) return;
+  if (dcRangementEnCours()) { renderDecoupage(); return; }
   if (champ === 'pages') {
     const lu = pagesDepuisSaisieDecoupage(valeur, dcEtat.pages.length);
     if (!lu) { afficherToast(`Pages illisibles : écrivez par exemple « 3-7, 9 » (1 à ${dcEtat.pages.length}).`, 'OK', null); renderDecoupage(); return; }
@@ -491,7 +501,7 @@ function dcVoirPage(n) {
   renderDecoupage();
 }
 
-// Page suivante ou précédente de la pièce choisie (‹ ›, flèches du clavier).
+// Page suivante ou précédente de la pièce choisie (‹ ›).
 function dcPageVoisine(sens) {
   const p = dcPiece(dcEtat.choisie);
   if (!p || !p.pages.length) return;
@@ -503,7 +513,7 @@ function dcPageVoisine(sens) {
 // Correction d'un clic : une page de la pièce retirée, ou la page voisine (grisée) ajoutée.
 function dcBasculerPage(id, n) {
   const p = dcPiece(id);
-  if (!p) return;
+  if (!p || !(Number.isInteger(n) && n >= 1 && n <= dcEtat.pages.length) || dcRangementEnCours()) return;
   if (p.pages.length === 1 && p.pages[0] === n) { afficherToast('Une pièce garde au moins une page : décochez-la plutôt pour ne pas la ranger.', 'OK', null); return; }
   dcPoserPages(p, basculerPageDecoupage(p.pages, n));
   renderDecoupage();
@@ -513,7 +523,7 @@ function dcBasculerPage(id, n) {
 function dcScinder(id, n) {
   const p = dcPiece(id);
   const coupe = p && scinderPagesDecoupage(p.pages, n);
-  if (!coupe) return;
+  if (!coupe || dcRangementEnCours()) return;
   dcPoserPages(p, coupe[0]);
   const nouvelle = dcNouvellePiece(coupe[1], p);
   dcEtat.pieces.splice(dcEtat.pieces.indexOf(p) + 1, 0, nouvelle);
@@ -527,7 +537,7 @@ function dcScinder(id, n) {
 
 // Une annexe que CLAIRE n'a pas repérée (pas de page « Annexe n° ») : nouvelle pièce sur la page affichée, pages à corriger ensuite.
 function dcAjouterPiece() {
-  if (!dcEtat.pages.length) return;
+  if (!dcEtat.pages.length || dcRangementEnCours()) return;
   const nouvelle = dcNouvellePiece([dcEtat.pageVue || 1], null);
   dcEtat.pieces.push(nouvelle);
   dcEtat.choisie = nouvelle.id;
@@ -547,8 +557,10 @@ function dcNouvellePiece(pages, parent) {
 // Seule une pièce ajoutée à la main se retire (les autres se décochent).
 function dcRetirerPiece(id) {
   const i = dcEtat.pieces.findIndex(x => x.id === id && x.ajoutee);
-  if (i < 0) return;
+  if (i < 0 || dcRangementEnCours()) return;
+  const etaitDiagnostic = dcEtat.pieces[i].sorte === 'diagnostic';
   dcEtat.pieces.splice(i, 1);
+  if (etaitDiagnostic) dcRecalculerTousDiagnostics();
   const suivante = dcEtat.pieces[Math.min(i, dcEtat.pieces.length - 1)];
   dcEtat.choisie = suivante ? suivante.id : '';
   dcEtat.pageVue = suivante ? suivante.pages[0] : 0;
@@ -596,8 +608,9 @@ async function dcRemplirImages() {
   if (!source || typeof pdfjsLib === 'undefined') return;
   const carte = document.getElementById('dc-carte');
   if (!carte) return;
-  const vides = Array.from(carte.querySelectorAll('img[data-dc-page]:not([src])'));
+  const vides = Array.from(carte.querySelectorAll('img[data-dc-page]:not([src])')).sort((a, b) => b.classList.contains('dc-image-grande') - a.classList.contains('dc-image-grande'));
   for (const img of vides) {
+    if (!img.isConnected) continue;
     const n = Number(img.dataset.dcPage); const largeur = Number(img.dataset.dcLargeur);
     try {
       const url = await dcImagePage(source, n, largeur);
@@ -659,7 +672,7 @@ function dcRendreCorps() {
     return;
   }
   const choisir = `<label class="dc-choisir"><input type="file" accept="application/pdf,.pdf" class="dc-fichier" onchange="dcDeposerFichier(this)"><wa-button appearance="outlined" size="s" type="button" onclick="this.previousElementSibling.click()">${icone('upload')}Choisir un PDF</wa-button></label>`;
-  const aRanger = dcEtat.pieces.filter(p => p.inclure && !p.rangee).length;
+  const aRanger = dcEtat.pieces.filter(p => p.inclure && !p.rangee && p.pages.length).length;
   const aVerifier = dcEtat.pieces.filter(p => p.reconnu === false).length;
   const rangees = dcEtat.pieces.filter(p => p.rangee).length;
   const barre = `<div class="cst-barre">
@@ -719,6 +732,7 @@ function libelleSortePieceDecoupage(p) {
 function dcDetailPiece() {
   const p = dcPiece(dcEtat.choisie);
   if (!p) return '<p class="hint">Choisissez une pièce à gauche pour voir ses pages.</p>';
+  if (!p.pages.length) return `<p class="hint">« ${escapeHtml(p.nom)} » n’a plus aucune page (tous les diagnostics sont décochés) : elle ne sera pas rangée.</p>`;
   const ido = escapeOnclickArg(p.id);
   const total = dcEtat.pages.length;
   const options = RUBRIQUES_DECOUPAGE.map(([cle, lib]) => `<option value="${escapeAttr(cle)}"${cle === p.rubrique ? ' selected' : ''}>${escapeHtml(lib)}</option>`).join('');
@@ -802,18 +816,21 @@ async function rangerDecoupage(ids) {
   // `ids` = les pièces annoncées sur la carte « Autoriser ».
   const etat = dcEtat;
   const jeton = etat.jeton;
-  const aFaire = etat.pieces.filter(p => p.inclure && !p.rangee && (!ids || ids.includes(p.id)));
+  const aFaire = etat.pieces.filter(p => p.inclure && !p.rangee && p.pages.length && (!ids || ids.includes(p.id)));
   etat.range = true;
   renderDecoupage();
   let rangees = 0; const echecs = [];
   for (const p of aFaire) {
     if (jeton !== dcEtat.jeton) break;
     try {
+      const avant = p.saisie + '|' + p.nom;
       const blob = await pdfPieceDecoupage(p, etat.source);
       const r = await fetchAvecAuth('/api/nas/deposer-annexe', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dossierId: d.id, nom: p.nom, contenu: await base64DepuisBlob(blob), rubriques: p.rubriques || [] }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.erreur || `le serveur a répondu ${r.status}`);
+      // Corrigée entre-temps (ne devrait plus arriver) : elle reste « à ranger ».
+      if (avant !== p.saisie + '|' + p.nom) throw new Error('corrigée pendant le rangement, à ranger de nouveau');
       p.rangee = String(j.chemin || '').split(/[\\/]/).slice(-2).join(' › ') || 'rangée';
       rangees++;
     } catch (e) { echecs.push(`${p.nom} : ${e && e.message ? e.message : 'erreur'}`); }
@@ -833,6 +850,7 @@ async function rangerDecoupage(ids) {
 
 // Corrections demandées à l'agent (pages, rubrique, à ranger, coupure) : mêmes gestes que l'écran, rien n'est écrit sur le NAS.
 function appliquerCorrectionsDecoupageAgent(liste) {
+  if (dcEtat.range) return [{ erreur: 'rangement en cours dans l’outil : aucune correction faite, redemande dans un instant' }];
   const compte = [];
   for (const c of liste.slice(0, 40)) {
     const p = dcPiece(String((c && c.piece_id) || ''));
@@ -886,7 +904,7 @@ async function decouperCompromisAgent(e) {
   };
   if (corrections) sortie.corrections = corrections;
   if (e.ranger) {
-    const ids = dcEtat.pieces.filter(p => p.inclure && !p.rangee).map(p => p.id);
+    const ids = dcEtat.pieces.filter(p => p.inclure && !p.rangee && p.pages.length).map(p => p.id);
     const n = ids.length;
     if (!d.nasDossier) return Object.assign(sortie, { rangement: 'dossier non relié au NAS : rien rangé' });
     if (!n) return Object.assign(sortie, { rangement: 'rien à ranger' });

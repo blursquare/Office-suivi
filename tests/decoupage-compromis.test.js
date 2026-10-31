@@ -177,6 +177,8 @@ test('31/10 : corrections de l’aperçu — page ajoutée ou retirée, coupe en
   assert.equal(app.basculerPageDecoupage([5, 6, 7], 4).join(','), '4,5,6,7');
   assert.equal(app.basculerPageDecoupage([5, 6, 7], 6).join(','), '5,7');
   assert.equal(app.basculerPageDecoupage([5], 5).join(','), '5', 'une pièce garde au moins une page');
+  assert.equal(app.basculerPageDecoupage([], undefined).length, 0, 'jamais une page invalide');
+  assert.equal(app.scinderPagesDecoupage([12, 13], undefined), null);
   const coupe = app.scinderPagesDecoupage([12, 13, 14, 15, 16], 14);
   assert.equal(coupe.map(x => x.join('-')).join('|'), '12-13|14-15-16');
   assert.equal(app.scinderPagesDecoupage([12, 13, 14], 12), null, 'pas de coupe sur la première page');
