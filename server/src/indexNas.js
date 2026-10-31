@@ -84,7 +84,7 @@ async function parcourirDossiersEnCours(o) {
         etat.vus++;
         if (r === 'nouveau') etat.nouveaux++; else if (r === 'change') etat.changes++;
       }
-      if (complet && fichiers.length) etat.retires += o.memoire.retirerAbsents(rubrique, fichiers.map((f) => f.chemin));
+      if (complet && listage.fichiers.length) etat.retires += o.memoire.retirerAbsents(rubrique, fichiers.map((f) => f.chemin));
     }
     // Dossier archivé, supprimé ou délié du NAS : son index disparaît (seulement si la liste des dossiers est celle du moment).
     for (const rub of o.memoire.rubriquesDossiers()) {

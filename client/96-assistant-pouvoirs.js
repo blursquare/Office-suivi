@@ -70,7 +70,7 @@
       else preparees.push({ e, d, prep, numero: i + 1 });
     });
     if (!preparees.length) return { erreur: 'aucune action possible', ignorees };
-    if (!(await demanderAutorisationAgent(descriptionLotAgent(preparees.map(x => x.prep.description))))) return REFUS_AGENT;
+    if (!(await demanderAutorisationAgent(descriptionLotAgent(preparees.map(x => x.prep.description)), { strict: preparees.some(x => x.prep.strict) }))) return REFUS_AGENT;
     const faites = [];
     const echecs = [];
     for (const x of preparees) {
