@@ -10,6 +10,9 @@ const crypto = require('node:crypto');
 const CLE_TRAVAUX = 'poste-claire-travaux';
 const MAX_TRAVAUX = 50;
 const ETATS_TRAVAIL = ['attente', 'en-cours', 'fini', 'erreur', 'annule'];
+// Un travail ne bloque jamais la file (étude 31/10 : « quand je lui envoie une tâche, si elle dit qu'elle le fait en arrière-plan, il faut
+// vraiment qu'elle le fasse » — un travail resté « en attente » sans fin) : au-delà de 25 min, il est arrêté et noté non terminé.
+const DELAI_MAX_TRAVAIL_MS = 25 * 60 * 1000;
 
 /** @param {any} v @param {number} max */
 const borne = (v, max) => String(v == null ? '' : v).replace(/\u0000/g, '').slice(0, max);
@@ -44,7 +47,7 @@ function travauxVisibles(liste, qui, tous) {
 }
 
 /**
- * @param {{ repo: any, poste: any, deposer: (p: any) => any, journal?: (m: string) => void, maintenant?: () => Date }} o
+ * @param {{ repo: any, poste: any, deposer: (p: any) => any, journal?: (m: string) => void, maintenant?: () => Date, delaiMaxMs?: number }} o
  */
 function creerFileTravaux(o) {
   const maintenant = o.maintenant || (() => new Date());
@@ -69,7 +72,10 @@ function creerFileTravaux(o) {
         majTravail(suivant.id, { etat: 'en-cours', debutLe: maintenant().toISOString() });
         let fin;
         try {
-          const r = await o.poste.travailler(suivant.consigne);
+          let minuterie;
+          const delai = new Promise((_, ko) => { minuterie = setTimeout(() => ko(new Error('Arrêté au bout de 25 minutes : CLAIRE n’a pas fini (une validation attendue, ou sa fenêtre ne répond plus).')), o.delaiMaxMs || DELAI_MAX_TRAVAIL_MS); });
+          let r;
+          try { r = await Promise.race([o.poste.travailler(suivant.consigne), delai]); } finally { clearTimeout(minuterie); }
           fin = majTravail(suivant.id, { etat: 'fini', finLe: maintenant().toISOString(), resultat: typeof r === 'string' ? r : JSON.stringify(r || '') });
         } catch (e) {
           fin = majTravail(suivant.id, { etat: 'erreur', finLe: maintenant().toISOString(), erreur: String(e && e.message || e).slice(0, 300) });
@@ -101,7 +107,9 @@ function creerFileTravaux(o) {
       return { travail: majTravail(id, { etat: 'annule', finLe: maintenant().toISOString() }) };
     },
     lister: (qui, tous) => travauxVisibles(lire(), qui, tous),
-    reprendre: () => traiter()
+    reprendre: () => traiter(),
+    /** Vrai pendant qu'un travail est traité (pour le dire à l'écran). */
+    enMarche: () => enMarche
   };
 }
 

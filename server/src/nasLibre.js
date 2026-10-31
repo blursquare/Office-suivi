@@ -191,10 +191,28 @@ async function listerNasLibre(nasRacine, rel, r, supp = []) {
   return { chemin: propre, dossiers: dossiers.slice(0, 300), fichiers: gardes, coupe: dossiers.length > 300 || fichiers.length > 300 };
 }
 
+// Mots vides d'une recherche par nom (étude 31/10 : « fais-moi une note d'honoraires, va chercher sur le NAS… il a du mal à récupérer le bon
+// document » — « d'honoraires » était cherché tel quel, apostrophe et pluriel compris, et « Note honoraire.docx » n'était jamais trouvé).
+const MOTS_VIDES_NOM = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'un', 'une', 'et', 'ou', 'pour', 'sur', 'au', 'aux', 'en', 'a', 'l', 'd']);
+
+/** Pure : un mot ramené à sa racine pour comparer des noms (pluriel en -s ou -x retiré au-delà de 3 lettres). @param {string} m */
+function racineMotNom(m) { return m.length > 3 ? m.replace(/[sx]$/, '') : m; }
+
+/** Pure : les mots d'une recherche par nom — sans accent, ponctuation et apostrophes coupées, mots vides retirés, au singulier ; 8 au plus.
+ * @param {string} texte */
+function motsRechercheNom(texte) {
+  return simplifier(texte).split(/[^a-z0-9]+/).filter((m) => m.length >= 2 && !MOTS_VIDES_NOM.has(m)).map(racineMotNom).slice(0, 8);
+}
+
+/** Pure : un nom ou un chemin sous la forme comparée aux mots (même découpage). @param {string} nom */
+function nomComparable(nom) {
+  return ' ' + simplifier(nom).split(/[^a-z0-9]+/).filter(Boolean).map(racineMotNom).join(' ') + ' ';
+}
+
 /** Recherche par NOM (chemin compris) dans la zone permise : tous les mots doivent y figurer. @param {string} nasRacine @param {string} texte @param {string} depuis
  * @param {{ racines: string[], exclus: string[] }} r @param {{ maintenant?: () => number }} [options] */
 async function chercherNasLibre(nasRacine, texte, depuis, r, options = {}, supp = []) {
-  const mots = simplifier(texte).split(' ').filter((m) => m.length >= 2).slice(0, 8);
+  const mots = motsRechercheNom(texte);
   if (!mots.length) return { erreur: 'texte : au moins un mot de deux lettres.', statut: 400 };
   const maintenant = options.maintenant || Date.now;
   const debut = maintenant();
@@ -220,7 +238,7 @@ async function chercherNasLibre(nasRacine, texte, depuis, r, options = {}, supp 
       vus++;
       const enfant = rel ? rel + '/' + e.name : e.name;
       if (exclu(segmentsSimples(enfant), r.exclus)) continue;
-      const simple = simplifier(enfant);
+      const simple = nomComparable(enfant);
       if (e.isDirectory()) {
         if (cheminPermis(enfant, r) || surLeCheminDUneRacine(enfant, r)) file.push(enfant);
         if (cheminPermis(enfant, r) && mots.every((m) => simple.includes(m))) trouves.push({ chemin: enfant, type: 'dossier', taille: null, modifieLe: null });
@@ -265,5 +283,5 @@ async function lireTexteNasLibre(nasRacine, rel, debut, r, supp = []) {
   return { texte: morceau, caracteres_total: texte.length, debut: depart, ...(fin < texte.length ? { suite: fin } : {}) };
 }
 
-module.exports = { EXCLUS_PAR_DEFAUT, CLE_NAS_LIBRE, racinesRefusees, cheminReelPermis, simplifier, cheminRelatifPropre, assainirNasLibre, lireNasLibre, ecrireNasLibre, cheminPermis, surLeCheminDUneRacine,
+module.exports = { motsRechercheNom, nomComparable, EXCLUS_PAR_DEFAUT, CLE_NAS_LIBRE, racinesRefusees, cheminReelPermis, simplifier, cheminRelatifPropre, assainirNasLibre, lireNasLibre, ecrireNasLibre, cheminPermis, surLeCheminDUneRacine,
   supplementairesPermis, resoudreLibre, listerNasLibre, chercherNasLibre, lireTexteNasLibre, MAX_CARACTERES_TEXTE };

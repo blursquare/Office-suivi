@@ -23481,3 +23481,20 @@ Branche `claude/retours-2026-10-30` (contient aussi le correctif 0.407.11 des ra
 ### 31/10/2026 — 0.411.0 : sujets de la conversation avec CLAIRE
 
 Étude (31/10) : « Elle crée parfois des fils de discussion et parfois non. Je passe souvent d'un dossier à un autre ou d'une question juridique… puis lecture d'un compromis pas encore dans un dossier. Ça se mélange et à droite il me laisse des analyses précédentes. » Choix : document joint, bouton « Nouveau sujet », détection par l'IA ; colonne = sujet en cours seulement. Fait : bouton `nouveauSujetManuelAssistant` (en-tête, conversation avec CLAIRE seulement) ; `nouveauSujetParDocumentAssistant` (un document joint coupe, sauf « compare avec, aussi, même, autre, précédent… ») ; `changementDeSujetParIaAssistant` → `POST /api/assistant/meme-sujet` (`memeSujet`, assistantConversation.js : trois dernières demandes et la nouvelle, `pseudonymiserDemande` + `masquerMontants`, réponse oui/non, IA du moteur en service, 4 s au plus ; sans IA en ligne, en erreur ou en doute : même sujet) ; à chaque sujet la colonne de droite repart à zéro (`ouvrirNouveauSujetAssistant` → `reinitialiserColonneAssistant`) ; « Son travail » ne montre plus que les travaux en attente, en cours ou finis depuis moins d'une heure (`travauxVisiblesClaire`). Tests : rien de nominatif dans le prompt de détection, règles du document joint, travaux visibles ; vérifié dans Chromium. Non vérifié avec une vraie IA (qualité de la détection, environ une seconde de plus sur une demande sans indice). CLAUDE.md (paragraphe « Une seule conversation ») à mettre à jour.
+
+### 31/10/2026 — 0.412.0 : dossier cité sans @, « Lui confier » qui aboutit, recherche NAS tolérante
+
+Étude (31/10) : « quand une conversation avec Claire parle d'un dossier déjà en cours, il faut basculer automatiquement dans le dossier » ;
+« lorsque je lui demande de rechercher sur le NAS un document, par exemple une note d'honoraire … il a du mal » ; « elle me fait : j'ai pas
+réussi. Puis après … voici les entreprises listées » ; « j'ai cliqué sur Lui confier et il ne s'est rien passé, juste « tâche en attente » … si
+elle me dit qu'elle le fait en arrière-plan, il faut vraiment qu'elle le fasse ».
+
+- `dossierCiteSansArobaseAssistant` (client/145) : `reconnaitreDossier` sur les dossiers EN COURS, retenu seulement si le nom du dossier ou
+  d'une partie est écrit dans la phrase et qu'un seul dossier correspond ; imposé comme un « @ » (nouveau sujet si le sujet portait un autre
+  dossier ; sujet sans dossier : l'IA juge encore si c'est un autre sujet). Jamais dans un canal ni pendant un « Lequel ? ».
+- « Lui confier » (`travauxClaire.js`) : travail arrêté au bout de 25 minutes avec une erreur dite au demandeur ; la file est relancée chaque
+  minute par la route (`routes/posteClaire.js`) ; la colonne de droite explique l'état (`explicationTravailClaire`) ; le brouillon d'email
+  ouvert dans la fenêtre invisible est ajouté au compte rendu (`brouillonPosteClaire`, jamais envoyé).
+- `nas_libre` chercher : mots vides retirés, pluriels ramenés au singulier, ponctuation ignorée (`motsRechercheNom`, `nomComparable`).
+- Prompt de l'agent : pour un modèle, mémoire (rubrique MODELES - OUTILS) puis `nas_libre` en 1–2 mots puis lister le dossier ; une seule
+  réponse écrite après les recherches.

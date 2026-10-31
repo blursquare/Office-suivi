@@ -373,14 +373,16 @@
     if (champ && !texteForce) champ.value = '';
     if (champ) champ.style.height = '';
     fermerMentionAssistant();
-    const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
+    // Sans « @ », un dossier en cours nommé dans la phrase fait aussi basculer (étude 31/10) ; jamais dans un canal ni sur une réponse attendue.
+    const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant)
+      || (!canaux.actif && !assistantContexte.attente ? dossierCiteSansArobaseAssistant(texte, dossiersPourAssistant(dossiers)) : '');
     mentionsChoisiesAssistant = [];
     // Conversation unique (client/145) : un autre dossier cité, ou trois heures sans échange — un nouveau sujet s'ouvre de lui-même.
     if (!canaux.actif && !texteForce && !assistantContexte.attente && assistantMessages.length) {
       // Étude 31/10 : aussi un document joint (sauf « compare avec… »), puis, faute d'indice, l'IA juge si la demande change de sujet.
       const change = nouveauSujetAssistant(assistantMessages, assistantContexte.dossierId, impose, Date.now())
         || (pieces.length > 0 && nouveauSujetParDocumentAssistant(assistantMessages, texteSaisi))
-        || (!pieces.length && !impose && await changementDeSujetParIaAssistant(texte));
+        || (!pieces.length && (!impose || !assistantContexte.dossierId) && await changementDeSujetParIaAssistant(texte));
       if (change) ouvrirNouveauSujetAssistant(impose);
     }
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;

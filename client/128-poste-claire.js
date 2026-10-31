@@ -57,7 +57,18 @@ async function travaillerPosteClaire(consigne) {
   const texte = 'Travail confié à ton poste virtuel : ' + String(consigne || '').slice(0, 4000);
   await envoyerAgentAssistant(texte);
   const derniere = assistantMessages.filter((m) => m.role === 'claire' && m.html && !/asst-autorisation/.test(m.html)).pop();
-  return derniere ? texteDuMessageClaire(derniere.html).slice(0, 8000) : 'Je n’ai rien à rapporter.';
+  const compteRendu = derniere ? texteDuMessageClaire(derniere.html) : 'Je n’ai rien à rapporter.';
+  return (compteRendu + brouillonPosteClaire()).slice(0, 8000);
+}
+
+// Un brouillon d'email préparé dans la fenêtre sans écran (rien n'y part, « Envoyer » y est inerte) : rapporté dans le compte rendu, sinon
+// il restait invisible (étude 31/10 : « préparer un brouillon et me le présenter… aucun résultat présenté »).
+function brouillonPosteClaire() {
+  if (typeof redaction === 'undefined' || !redaction) return '';
+  const champ = (id) => { const el = document.getElementById(id); return el ? String(el.value || el.innerText || '').trim() : ''; };
+  const texte = champ('redaction-texte') || String(redaction.texte || '').trim();
+  if (!texte) return '';
+  return `\n\n— Brouillon préparé (non envoyé, à copier dans un email) —\nÀ : ${champ('redaction-a') || redaction.a || '?'}\nObjet : ${champ('redaction-sujet') || redaction.sujet || '?'}\n\n${texte.slice(0, 4000)}`;
 }
 
 if (POSTE_CLAIRE) {
@@ -78,6 +89,17 @@ if (POSTE_CLAIRE) {
 // arrive à la fin dans sa conversation (message de CLAIRE). On le lui confie par la zone de saisie ; « Son travail » : colonne de droite (client/126).
 var travauxClaire = { liste: [], charge: false, minuterie: null };
 var INTERVALLE_TRAVAUX_CLAIRE_MS = 10 * 1000;
+
+// Pure : ce que fait CLAIRE pour ce travail, en clair (étude 31/10 : « elle dit qu'elle utilise son navigateur, mais qu'est-ce qu'elle fait
+// exactement ? »). Elle travaille dans une fenêtre CLAIRE invisible ouverte par le serveur, avec le même agent que la conversation ; chaque geste
+// qui modifie quelque chose attend la validation d'un administrateur (carte « Demande de CLAIRE » dans À traiter) ; rien n'est envoyé.
+function explicationTravailClaire(t, maintenant) {
+  if (!t) return '';
+  const depuis = (iso) => { const m = Math.max(0, Math.round((maintenant - (Date.parse(iso || '') || maintenant)) / 60000)); return m < 1 ? 'à l’instant' : `depuis ${m} min`; };
+  if (t.etat === 'attente') return `Confié ${depuis(t.creeLe)} : il démarre dès que le travail précédent est fini (un à la fois, vérifié chaque minute).`;
+  if (t.etat === 'en-cours') return `En cours ${depuis(t.debutLe)}, dans sa fenêtre CLAIRE invisible sur le serveur : elle lit et prépare comme dans la conversation ; un geste qui modifie quelque chose attend votre validation (« Demande de CLAIRE » dans À traiter) ; rien n’est envoyé. Arrêté au bout de 25 min.`;
+  return '';
+}
 
 // Pure : le libellé de l'état d'un travail.
 function libelleEtatTravailClaire(t) {
@@ -161,6 +183,7 @@ function htmlTravauxClaire() {
       <div class="pf-tr-tete"><span class="pf-tr-etat">${t.etat === 'en-cours' ? icone('spinner', null, true) : ''}${escapeHtml(libelleEtatTravailClaire(t))}</span>
         <span class="pf-tr-consigne">${escapeHtml(t.consigne)}</span>
         ${t.etat === 'attente' ? `<wa-button appearance="plain" size="s" type="button" onclick="annulerTravailClaire('${escapeOnclickArg(t.id)}')">Annuler</wa-button>` : ''}</div>
+      ${t.etat === 'en-cours' || t.etat === 'attente' ? `<p class="pf-tr-quoi">${escapeHtml(explicationTravailClaire(t, Date.now()))}</p>` : ''}
       ${t.etat === 'fini' && t.resultat ? `<details class="pf-tr-cr"><summary>Compte rendu</summary><p>${escapeHtml(t.resultat).replace(/\n/g, '<br>')}</p></details>` : ''}
       ${t.etat === 'erreur' && t.erreur ? `<p class="pf-tr-erreur">${escapeHtml(t.erreur)}</p>` : ''}</li>`).join('')}</ul></div>`;
 }

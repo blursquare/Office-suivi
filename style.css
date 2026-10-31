@@ -11685,3 +11685,4 @@ wa-button.fonds-plus.actif::part(base) { background: color-mix(in srgb, var(--fo
 /* « Nouveau sujet » (étude 31/10) : seulement dans la conversation avec CLAIRE, jamais dans un canal. */
 .asst-page:not(.mode-claire) .asst-nouveau-sujet { display: none; }
 wa-button.asst-nouveau-sujet { margin-right: 4px; }
+.pf-tr-quoi { margin: 4px 0 0; font-size: var(--texte-s); color: var(--muted); }

@@ -112,3 +112,16 @@ test('changer de sujet (étude 31/10) : document joint, demandes précédentes, 
     { id: '3', etat: 'fini', finLe: '2026-10-31T11:30:00Z' }, { id: '4', etat: 'erreur', finLe: '2026-10-31T09:00:00Z' }], maintenant);
   assert.equal(l.map(t => t.id).join(','), '1,2,3', 'un travail fini depuis plus d’une heure quitte la colonne');
 });
+
+test('dossier cité sans @ (étude 31/10) : nom du dossier ou d’une partie, un seul dossier en cours, jamais un archivé', () => {
+  const liste = [
+    { id: 'd1', nom: 'MORVAN / FAURE', parties: [{ nom: 'MORVAN', prenom: 'Paul' }, { nom: 'FAURE', prenom: 'Léa' }], autres: ['Agence Delorme'] },
+    { id: 'd2', nom: 'BERNIER / ROCHE', parties: [{ nom: 'BERNIER' }, { nom: 'ROCHE' }] },
+    { id: 'd3', nom: 'LEGRAND / VIDAL', archive: true, parties: [{ nom: 'LEGRAND' }] }
+  ];
+  assert.equal(app.dossierCiteSansArobaseAssistant('Où en est le prêt de Faure ?', liste), 'd1');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Prépare l’appel de fonds Bernier', liste), 'd2');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Et le dossier Legrand ?', liste), '', 'archivé : pas de bascule');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Appelle l’agence Delorme', liste), '', 'un mot d’agence seul ne suffit pas');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Quel est le délai de rétractation SRU ?', liste), '');
+});

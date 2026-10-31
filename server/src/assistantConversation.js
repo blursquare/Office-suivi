@@ -111,7 +111,7 @@ async function memeSujet(entree, client) {
   const nettoyer = (/** @type {any} */ t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 400);
   const texte = nettoyer(entree && entree.texte);
   const historique = (Array.isArray(entree && entree.precedentes) ? entree.precedentes : []).slice(-3).map(nettoyer).filter(Boolean).map((t) => ({ role: 'moi', texte: t }));
-  const ps = pseudonymiserDemande(texte, { aujourdhui: '', dossierLibelle: '', historique }, (entree && entree.dossiers) || []);
+  const ps = pseudonymiserDemande(texte, /** @type {any} */ ({ dossierLibelle: '', historique }), (entree && entree.dossiers) || []);
   const precedentes = ps.contexte.historique.map((/** @type {any} */ h) => masquerMontants(h.texte, ps.table));
   const objet = await client.genererJson(promptMemeSujet(precedentes, masquerMontants(ps.texte, ps.table)),
     (/** @type {any} */ o) => (o && typeof o.meme_sujet === 'boolean' ? null : 'meme_sujet attendu'),

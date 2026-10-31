@@ -198,3 +198,12 @@ test('23/10 : un dossier voisin de la racine (MODELES - OUTILS dans le partage C
   const via = await nl.lireTexteNasLibre(racine, 'MODELES - OUTILS/lien/s.txt', 0, r, supp);
   assert.ok(via.erreur, 'le lien ne sort pas du dossier nommé');
 });
+
+test('recherche par nom tolérante (étude 31/10 : « note d’honoraires » ne trouvait pas « Note honoraire.docx »)', () => {
+  const { motsRechercheNom, nomComparable } = require('../src/nasLibre');
+  const mots = motsRechercheNom("Note d'honoraires");
+  assert.deepEqual(mots, ['note', 'honoraire']);
+  assert.ok(mots.every((m) => nomComparable('MODELES - OUTILS/Notes/Note honoraire 2026.docx').includes(m)));
+  assert.ok(motsRechercheNom('établissements recevant du public').every((m) => nomComparable('Liste des etablissements recevant public.pdf').includes(m)));
+  assert.deepEqual(motsRechercheNom('de la'), [], 'que des mots vides : rien à chercher');
+});

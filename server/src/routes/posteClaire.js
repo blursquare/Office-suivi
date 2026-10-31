@@ -53,6 +53,9 @@ function creerRouteurPosteClaire(parametresRepo, poste, config) {
     return r;
   } });
   file.reprendre().catch(() => {});
+  // Filet : la file est relancée chaque minute (un travail confié pendant un redémarrage, ou une relance manquée, ne reste jamais « en attente »).
+  const relance = setInterval(() => { file.reprendre().catch(() => {}); }, 60 * 1000);
+  if (relance.unref) relance.unref();
 
   routeur.post('/poste-claire/travail', (req, res) => {
     if (!ordinaire(req, res)) return;

@@ -18,6 +18,21 @@ function nouveauSujetAssistant(messages, dossierDuSujet, dossierImpose, maintena
   return !!(dossierImpose && dossierDuSujet && dossierImpose !== dossierDuSujet);
 }
 
+// Pure : le dossier EN COURS dont on parle sans « @ » (étude 31/10 : « quand je parle d'un dossier déjà en cours, il faut basculer
+// automatiquement dedans »). Reconnu par toutes les données de la fiche (reconnaitreDossier), mais retenu seulement quand le nom du dossier
+// ou celui d'une partie est écrit dans la phrase — un mot d'adresse, d'agence ou de notaire seul ne fait jamais basculer — et qu'un seul
+// dossier en cours correspond (jamais deviné entre deux).
+function dossierCiteSansArobaseAssistant(texte, liste) {
+  const enCours = (Array.isArray(liste) ? liste : []).filter(d => d && d.id && !d.archive);
+  if (!enCours.length) return '';
+  const r = reconnaitreDossier(texte, enCours);
+  if (!r.dossier) return '';
+  const d = enCours.find(x => x.id === r.dossier);
+  const mots = new Set(motsUtilesAssistant(texte));
+  const noms = motsUtilesAssistant([d.nom, ...(d.parties || []).map(p => p && ((p.nom || '') + ' ' + (p.nomUsage || '')))].join(' '));
+  return noms.some(m => mots.has(m)) ? d.id : '';
+}
+
 // Pure : les sujets montrés au-dessus du sujet en cours — de moins de 7 jours, les plus anciens d'abord, 3 au plus.
 function sujetsPrecedentsAssistant(conversations, idCourant, maintenant) {
   return (Array.isArray(conversations) ? conversations : [])
