@@ -384,7 +384,7 @@
     if (!canaux.questionSansRelance) poserMessageAssistant('moi', htmlTexteCanal(texte, canaux.collaborateurs, utilisateurPoste) + (pieces.length && !canaux.actif ? `<div class="asst-pj-liste">${pieces.map(p => htmlCartePieceJointeAssistant(p)).join('')}</div>` : ''), [], { texte,
       pj: pieces.map(p => ({ nom: p.nom, type: p.sorte, ...(p.nas ? { nas: p.nas } : p.serveurId ? { fichierId: p.serveurId, taille: p.fichier ? p.fichier.size : 0 } : {}) })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
-    // Dans un fil, la règle est celle du fil (claireRepondDansFil, client/120).
+    // Dans un fil : la règle du fil (claireRepondDansFil, client/120), ou — canal d’un de MES dossiers — tout message qui ne s’adresse pas à un collègue (retour de l’étude 30/10).
     if (canaux.actif && (fichierSeulCanal || !((canaux.parentCourant && canaux.claireRepondFil) || claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif, responsableDuCanalEstMoi(canaux.actif))))) {
       // Une question sans réponse dans 15 minutes : CLAIRE y répondra (client/144).
       if (!canaux.parentCourant && texte) noterQuestionCanalPourRelance(canaux.actif, texte);

@@ -12,7 +12,7 @@ const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 /** @param {Function} fn */
 const routeAsync = (fn) => (/** @type {any} */ req, /** @type {any} */ res) => Promise.resolve(fn(req, res)).catch((e) => {
   console.error('[gif]', e && e.message);
-  if (!res.headersSent) res.status(502).json({ erreur: String((e && e.message) || 'erreur').slice(0, 120) });
+  if (!res.headersSent) res.status(e && e.status === 400 ? 400 : 502).json({ erreur: String((e && e.message) || 'erreur').slice(0, 120) });
 });
 
 /** @param {any} repo @param {any} gif */

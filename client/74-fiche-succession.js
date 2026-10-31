@@ -360,18 +360,19 @@
     const dejaLus = !!(d.fondsRecus && (d.fondsRecus.recus || []).length) || !!d.fondsValidesLe;
     if (!possible && !dejaLus) return '';
     let ligne = '';
-    if (s.appelFondsInutile === true) {
+    // Avec un conjoint survivant l'appel de fonds est dû (étude 30/10, soir : commun/succession.js) : jamais « pas nécessaire » ici.
+    if (s.appelFondsInutile === true && !conjointSurvivant(d)) {
       ligne = renderLigneAction({ categorie: 'appelFonds', categorieLabel: 'Appel de fonds', titre: 'Appel de fonds — pas nécessaire', faite: true,
         sousHtml: '<span class="dot-label dl-neutre"><span class="dot"></span>Fonds suffisants en comptabilité</span>',
         bouton: { libelle: 'Rétablir', icone: icone('rotate-ccw'), onclick: `marquerAppelFondsSuccessionInutile('${idJs}', false)`, titre: 'Prévoir de nouveau un appel de fonds avant le dernier rendez-vous' } });
     } else if (etape) {
       const quand = etape.fait ? 'Fait' : etape.iso ? `À envoyer le ${formatDateFr(etape.iso)}` : '10 jours avant le dernier rendez-vous, une fois placé';
-      const conseil = conjointSurvivant(d) ? 'souvent inutile avec un conjoint survivant' : 'si la comptabilité ne couvre pas nos frais';
+      const conseil = conjointSurvivant(d) ? 'dû : les comptes sont transférés au conjoint survivant' : 'si la comptabilité ne couvre pas nos frais';
       ligne = renderLigneAction({ categorie: 'appelFonds', categorieLabel: 'Appel de fonds', titre: 'Appel de fonds des frais d’acte', faite: !!etape.fait,
         sousHtml: `<span class="dot-label ${etape.fait ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${escapeHtml(quand)}</span> <span class="hint">· ${escapeHtml(conseil)}</span>`,
-        bouton: etape.fait ? null : { libelle: 'Pas nécessaire', icone: icone('x'), onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier' } });
+        bouton: etape.fait || conjointSurvivant(d) ? null : { libelle: 'Pas nécessaire', icone: icone('x'), onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier' } });
     }
-    const recus = s.appelFondsInutile === true && !dejaLus ? '' : renderFondsRecus(d);
+    const recus = s.appelFondsInutile === true && !conjointSurvivant(d) && !dejaLus ? '' : renderFondsRecus(d);
     if (!ligne && !recus) return '';
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
@@ -629,8 +630,11 @@
       const actuel = dossiers.find(x => x.id === dossierId);
       if (!actuel) return;
       // Retour de l'étude 30/10 : l'interrogation retrouvée dans le dossier FCDDV du commun vaut pièce reçue (la checklist ne la cherchait que dans le dossier du client).
-      if (communChemin && (actuel.pieces || {}).fcddv !== 'recue') {
+      // Un seul fichier au nom du défunt, et la décision gardée comme une validation à la main : le parcours du NAS (qui ne regarde que le
+      // dossier du client) ne la repasse plus « manquante » à chaque tour (audit 0.408.0).
+      if (communChemin && communPlusieurs <= 1 && (actuel.pieces || {}).fcddv !== 'recue') {
         actuel.pieces = Object.assign({}, actuel.pieces, { fcddv: 'recue' });
+        actuel.piecesValideesManuellement = Array.from(new Set([...(Array.isArray(actuel.piecesValideesManuellement) ? actuel.piecesValideesManuellement : []), 'fcddv']));
         ajouterHistorique(actuel, 'Pièce « FCDDV » reçue : réponse retrouvée dans le dossier FCDDV du commun');
       }
       if (!analyse.aucune && !analyse.inscriptions.length) {

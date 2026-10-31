@@ -208,8 +208,12 @@
   // La colonne de droite de l'onglet Dossier : la carte Authentic seule (retour de l'étude, 30/10) ; les outils vont sous la colonne du milieu
   // (renderOutilsFiche), pour ne pas laisser de grand blanc sous elle.
   function renderColonneOutilsFiche(d) {
+    // Vendeur marié ou pacsé qui vend sans son conjoint (lu dans Authentic) : l'alerte reste en tête de la colonne — elle n'était dite que
+    // dans le bloc « Dans Authentic », retiré le 30/10 (audit 0.408.0).
+    const alertes = d && !estSuccession(d) && typeof alertesConjointDossier === 'function' ? alertesConjointDossier(d) : [];
+    const htmlAlertes = alertes.map(al => `<p class="authentic-alerte"><span class="dot-label dl-urgent"><span class="dot"></span>${escapeHtml(al.texte)}</span></p>`).join('');
     const authentic = d && typeof renderPanneauAuthentic === 'function' ? renderPanneauAuthentic(d) : '';
-    return authentic ? `<aside class="fiche-outils-droite" aria-label="Authentic">${authentic}</aside>` : '';
+    return htmlAlertes || authentic ? `<aside class="fiche-outils-droite" aria-label="Authentic">${htmlAlertes}${authentic}</aside>` : '';
   }
 
   // Outils rangés dans leur onglet (retour de l'étude, 30/10 : « dispatcher les boutons d'outils dans leurs onglets respectifs, au même endroit

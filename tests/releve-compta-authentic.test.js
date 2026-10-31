@@ -40,3 +40,11 @@ test('Comedec d’une succession (étude 30/10 : défunt + héritiers) : naissan
   assert.equal(papier.length, 1);
   assert.ok(papier[0].personne && papier[0].personne.role === 'HERITIER');
 });
+
+test('relevé lu dans Authentic : un montant écrit dans le libellé ne décale pas les colonnes (audit 0.408.0)', () => {
+  const app = chargerApplication();
+  const a = app.analyseReleveDepuisComptabilite({ operations: [{ date: '2026-08-01', libelle: 'ACOMPTE 1 500,00 SUR PRIX DUPONT', debit: 0, credit: 1500 }] });
+  assert.equal(a.ecritures.length, 1);
+  assert.equal(a.recu.prix, 1500);
+  assert.equal(a.ambigues, 0);
+});

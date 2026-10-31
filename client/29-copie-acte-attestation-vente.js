@@ -633,7 +633,9 @@
     // « Revérifier l'offre de prêt » toujours dans l'onglet Fonds (étude 23/10), à côté de « Ouvrir l'offre » quand elle est trouvée.
     // Mêmes pastilles d'action que « Revérifier » des pièces (étude 24/10 : un texte bordeaux en gras ne disait pas qu'on pouvait cliquer).
     const actions = (r.ouvrable ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">${icone('file-text')} Ouvrir l’offre</wa-button>` : '')
-      + (d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">${icone('rotate-ccw')} Revérifier l’offre de prêt</wa-button>` : '');
+      + (d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">${icone('rotate-ccw')} Revérifier l’offre de prêt</wa-button>` : '')
+      // « Pas de prêt dans ce dossier » (étude 12/10 : toujours à portée) — sa ligne d'échéance repliée a été retirée de la fiche le 30/10 (audit 0.408.0).
+      + (!d.archive && r.statut !== 'recue' ? `<button type="button" class="lien-action" onclick="marquerSansPret('${escapeOnclickArg(d.id)}')">Pas de prêt dans ce dossier</button>` : '');
     return `<div class="echanges-groupe fonds-offre">
         <div class="echanges-tete">
           <span class="pieces-titre">${icone('file-text')}<span class="pieces-titre-texte">Offre de prêt</span></span>

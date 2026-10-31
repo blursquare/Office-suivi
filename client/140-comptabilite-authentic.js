@@ -162,7 +162,9 @@ function analyseReleveDepuisComptabilite(c) {
   (c && Array.isArray(c.operations) ? c.operations : []).forEach((o) => {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(o && o.date || ''));
     if (!m || !o.libelle || !(Number(o.debit) > 0 || Number(o.credit) > 0)) return;
-    lignes.push(`${m[3]}/${m[2]}/${m[1]} ${String(o.libelle).replace(/\s+/g, ' ').trim()} ${montant(o.debit)} ${montant(o.credit)}`);
+    // Un montant écrit dans le libellé (« ACOMPTE 1 500,00 ») décalerait les colonnes à la relecture : il est retiré (audit 0.408.0).
+    const libelle = String(o.libelle).replace(/\d{1,3}(?:[\s\u00a0\u202f.]\d{3})*,\d{2}(?!\d)/g, ' ').replace(/\s+/g, ' ').trim() || 'Opération';
+    lignes.push(`${m[3]}/${m[2]}/${m[1]} ${libelle} ${montant(o.debit)} ${montant(o.credit)}`);
   });
   return analyserReleveCompteClient(lignes);
 }
@@ -174,7 +176,13 @@ async function lireReleveCompteDansAuthentic() {
   if (!d || !String(d.referenceAuthentic || '').trim()) { afficherToast('Reliez d’abord un dossier qui a sa référence Authentic : le relevé est lu dans sa comptabilité.', 'OK', null); return { ok: false, texte: 'pas de dossier Authentic' }; }
   const r = await lireComptabiliteAT(d.id);
   const c = ((dossiers.find((x) => x.id === d.id) || d).authentic || {}).comptabilite;
-  if (!r.ok || !c) return { ok: false, texte: r.texte || 'comptabilité non lue' };
+  // Lecture impossible (connexion à Authentic éteinte…), liste des opérations incomplète ou plusieurs comptes : les acomptes du relevé
+  // REMPLACENT la ligne d'acompte du décompte, un relevé partiel en ferait perdre (relecture 0.408.0) — on revient au PDF de JurisWeb.
+  const raison = !r.ok || !c ? (r.texte || 'comptabilité non lue') : c.tronque ? 'liste des opérations incomplète dans Authentic' : (c.nombreComptes || 1) > 1 ? 'plusieurs comptes dans Authentic' : '';
+  if (raison) {
+    afficherToast(`Relevé non repris (${raison}) : choisissez le PDF du relevé de compte client.`, 'Choisir le PDF', () => { const champ = document.getElementById('af-releve-compte'); if (champ) champ.click(); });
+    return { ok: false, texte: raison };
+  }
   return poserReleveCompteAppelFonds(analyseReleveDepuisComptabilite(c));
 }
 

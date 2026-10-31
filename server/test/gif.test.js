@@ -50,6 +50,6 @@ test('GIF : routes — la clé n’est jamais renvoyée, réglage réservé à l
     assert.equal((await appel('/api/gif/reglages', 'PUT', { auteur: 'Bastien ANGLUMENT', cle: 'secret-tenor' })).status, 200);
     const lu = await (await appel('/api/gif/reglages')).text();
     assert.ok(!lu.includes('secret-tenor') && lu.includes('"cleEnregistree":true'));
-    assert.equal((await appel('/api/gif/image?url=' + encodeURIComponent('https://autre.com/a.gif'))).status, 502);
+    assert.equal((await appel('/api/gif/image?url=' + encodeURIComponent('https://autre.com/a.gif'))).status, 400, 'adresse refusée = erreur du poste (audit 0.408.0)');
   } finally { s.close(); db.close(); }
 });

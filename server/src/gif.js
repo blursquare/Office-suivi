@@ -57,11 +57,29 @@ function creerGif(repo, fetchImpl) {
     },
     /** @param {string} url */
     async image(url) {
-      if (!urlImagePermise(url)) throw new Error('adresse refusée');
+      if (!urlImagePermise(url)) throw Object.assign(new Error('adresse refusée'), { status: 400 });
       const r = await f(url, { redirect: 'error', signal: AbortSignal.timeout(15000) });
       if (!r.ok) throw new Error(`image : HTTP ${r.status}`);
-      const tampon = Buffer.from(await r.arrayBuffer());
-      if (tampon.length > MAX_OCTETS) throw new Error('image trop lourde');
+      // Taille contrôlée AVANT d'avoir tout reçu (audit 0.408.0 : un gros fichier de Tenor était chargé entier en mémoire) : la taille
+      // annoncée, puis la lecture en flux arrêtée au-delà du plafond.
+      if (Number(r.headers && r.headers.get ? r.headers.get('content-length') || 0 : 0) > MAX_OCTETS) throw new Error('image trop lourde');
+      let tampon;
+      if (r.body && typeof r.body.getReader === 'function') {
+        const lecteur = r.body.getReader();
+        const morceaux = [];
+        let total = 0;
+        for (;;) {
+          const { done, value } = await lecteur.read();
+          if (done) break;
+          total += value.length;
+          if (total > MAX_OCTETS) { try { await lecteur.cancel(); } catch (e) { /* déjà fermé */ } throw new Error('image trop lourde'); }
+          morceaux.push(Buffer.from(value));
+        }
+        tampon = Buffer.concat(morceaux);
+      } else {
+        tampon = Buffer.from(await r.arrayBuffer());
+        if (tampon.length > MAX_OCTETS) throw new Error('image trop lourde');
+      }
       if (tampon.subarray(0, 4).toString('latin1') !== 'GIF8') throw new Error('ce n’est pas un GIF');
       return tampon;
     }
