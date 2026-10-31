@@ -8,9 +8,9 @@
 //   - sans carte : tout le reste (calculer, lire, tirer le plan, suivant, voir, ouvrir…), comme un clic de l'utilisateur.
 // Le poste de CLAIRE (client/128) garde en plus le refus du serveur sur les envois et les réglages (routeInterditePosteClaire).
 
-var RE_BOUTON_JAMAIS = /t[ée]l[ée]charg|download|envoy|envoi|\bsend\b|e-?mail|courriel|outlook|imprim|export|\bpdf\b|\bword\b|docx|xlsx|\bcsv\b|yousign|\bsigner\b|teams|mot de passe|identifiant|d[ée]connect|mise [àa] jour|restaur|sauvegard|partager/i;
+var RE_BOUTON_JAMAIS = /t[ée]l[ée]charg|download|envoy|envoi|\bsend\b|e-?mail|courriel|outlook|imprim|export|\bpdf\b|\bword\b|\bexcel\b|docx|xlsx|\bcsv\b|yousign|\bsigner\b|teams|mot de passe|identifiant|d[ée]connect|mise [àa] jour|restaur|sauvegard|partager/i;
 var RE_BOUTON_STRICT = /supprim|effac|retir|archiv|vider|r[ée]initialis|d[ée]tach|oubli|annuler le|remettre/i;
-var RE_BOUTON_CARTE = /enregistr|valid|confirm|coch|ajout|cr[ée]er|plac|appliqu|mettre [àa] jour|compl[ée]t|reprendre|marqu|d[ée]plac|renomm|d[ée]j[àa] fait|pas de pr[êe]t|ranger|autoris|refus|accept|ignorer|choisir|rattach|relier/i;
+var RE_BOUTON_CARTE = /^\s*\+|[ée]cart|coller|laisser|r[ée]tabl|aucune inscription|enregistr|valid|confirm|coch|ajout|cr[ée]er|plac|appliqu|mettre [àa] jour|compl[ée]t|reprendre|marqu|d[ée]plac|renomm|d[ée]j[àa] fait|pas de pr[êe]t|ranger|autoris|refus|accept|ignorer|choisir|rattach|relier/i;
 var MAX_BOUTONS_LUS_AGENT = 80;
 var compteurBoutonsAgent = 0;
 
@@ -19,13 +19,21 @@ function libelleBoutonAgent(texte, aria, titre) {
   return String(texte || aria || titre || '').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-// Pure : 'jamais' | 'strict' | 'carte' | 'libre' — d'après le libellé, le titre et la place du bouton.
-function classementBoutonAgent(libelle, titre, place) {
+// Audit 0.415.0 : le libellé ne suffit pas (« Ouvrir le brouillon » envoie au niveau 2, « Excel » télécharge, une pièce jointe s'appelle par
+// son nom de fichier) — la FONCTION appelée au clic est lue aussi. Jamais : décider une proposition (y compris ses propres « Demande de
+// CLAIRE »), télécharger, imprimer, envoyer, ouvrir un fichier ou un document ; carte : ce qui ajoute, colle, écarte, réagit, déplace.
+var RE_FONCTION_JAMAIS = /(autoriser|refuser|decider)Proposition|telecharg|imprim|envoy|exporter|ouvrir(PieceJointe|Fichier|Document|PlanAerien|Eml|Outlook)|livrer(Eml|Email)|genererConstitution|copierPresse|navigator\.clipboard|window\.open|location\.href/i;
+var RE_FONCTION_CARTE = /coller|ecart|retablir|ajouter|reagir|deplacer|renommer|ranger|laisser|archiver|cocher|marquer|placer|valider|enregistrer|sauvegarder|changer|repondre|basculer(Engagement|Echeance)|supprimer|retirer/i;
+
+// Pure : 'jamais' | 'strict' | 'carte' | 'libre' — d'après le libellé, le titre, la place du bouton et la fonction appelée au clic.
+function classementBoutonAgent(libelle, titre, place, fonction) {
   const t = `${libelle || ''} ${titre || ''}`;
-  if (place === 'reglages' || place === 'telechargement') return 'jamais';
+  const f = String(fonction || '');
+  if (place === 'reglages' || place === 'telechargement' || place === 'proposition') return 'jamais';
+  if (RE_FONCTION_JAMAIS.test(f)) return 'jamais';
   if (RE_BOUTON_JAMAIS.test(t)) return 'jamais';
   if (RE_BOUTON_STRICT.test(t)) return 'strict';
-  if (RE_BOUTON_CARTE.test(t)) return 'carte';
+  if (RE_BOUTON_CARTE.test(t) || RE_FONCTION_CARTE.test(f)) return 'carte';
   return 'libre';
 }
 
@@ -40,6 +48,7 @@ function zoneBoutonsAgent(cible) {
 
 function placeBoutonAgent(el) {
   if (el.closest && el.closest('#onglet-reglages, .reglages-corps')) return 'reglages';
+  if (el.closest && el.closest('[class*="proposition"], .pc-actions, .canal-carte-routine, .rt-carte')) return 'proposition';
   const tag = String(el.tagName || '').toLowerCase();
   if (tag === 'a' && (el.hasAttribute('download') || /^blob:|\.(pdf|docx?|xlsx?|csv|eml|zip)(\?|$)/i.test(el.getAttribute('href') || ''))) return 'telechargement';
   return '';
@@ -62,7 +71,7 @@ async function boutonsAgent(entree) {
     return { nombre: boutons.length, boutons: boutons.slice(0, MAX_BOUTONS_LUS_AGENT).map(el => {
       if (!el.dataset.agentBouton) el.dataset.agentBouton = 'b' + (++compteurBoutonsAgent);
       const libelle = libelleBoutonAgent(el.textContent, el.getAttribute('aria-label'), el.getAttribute('title'));
-      const c = classementBoutonAgent(libelle, el.getAttribute('title'), placeBoutonAgent(el));
+      const c = classementBoutonAgent(libelle, el.getAttribute('title'), placeBoutonAgent(el), el.getAttribute('onclick'));
       return { id: el.dataset.agentBouton, libelle, clic: RAISONS_BOUTON_AGENT[c] };
     }), ...(boutons.length > MAX_BOUTONS_LUS_AGENT ? { coupe: 'seuls les premiers boutons sont listés' } : {}) };
   }
@@ -70,7 +79,7 @@ async function boutonsAgent(entree) {
   const el = boutons.find(b => b.dataset.agentBouton === String(e.bouton || ''));
   if (!el) return { erreur: 'bouton introuvable ou plus visible : liste d’abord les boutons (mode lister), n’invente jamais un id' };
   const libelle = libelleBoutonAgent(el.textContent, el.getAttribute('aria-label'), el.getAttribute('title'));
-  const c = classementBoutonAgent(libelle, el.getAttribute('title'), placeBoutonAgent(el));
+  const c = classementBoutonAgent(libelle, el.getAttribute('title'), placeBoutonAgent(el), el.getAttribute('onclick'));
   if (c === 'jamais') return { refuse: true, message: `« ${libelle} » : ${RAISONS_BOUTON_AGENT.jamais}. Dis à l’utilisateur de cliquer lui-même.` };
   if (c !== 'libre') {
     const ok = await demanderAutorisationAgent(`Cliquer « ${libelle} »${e.pourquoi ? ` — ${String(e.pourquoi).slice(0, 160)}` : ''}.`, { strict: c === 'strict' });

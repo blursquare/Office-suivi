@@ -23576,3 +23576,9 @@ ma place. »
   la consigne demande de lister à la fin les gestes non validés à temps (« À valider en revenant ») — les « Demande de CLAIRE » d'un demandeur
   parti expirent toujours en 8 minutes ; textes « validation de Bastien » corrigés. Reste à décider par l'étude : les administrateurs voient la
   consigne de tous les travaux (donc des demandes reprises de Julie et Jérémy).
+- 31/10, audit de 0.415.0 (`docs/audits/2026-10-31-0.415.0.md`, deux points Haut corrigés avant tout envoi) : le classement d'un bouton lit
+  aussi la FONCTION appelée au clic (`RE_FONCTION_JAMAIS` : décider une proposition, télécharger, imprimer, envoyer, ouvrir une pièce jointe,
+  un fichier du NAS ou un document ; `RE_FONCTION_CARTE` : coller, écarter, rétablir, ajouter, réagir, déplacer, ranger…) et sa PLACE (tout
+  bouton d'une carte de proposition — y compris les « Demande de CLAIRE » de son ordinateur virtuel — est « jamais » : « Ouvrir le brouillon »
+  envoyait l'email au niveau 2 sans carte) ; « Excel », un libellé en « + », « écarter », « coller », « laisser », « rétablir » ajoutés. Reste
+  connu (Bas) : un clic libre peut ouvrir une confirmation de l'écran que l'agent ne voit pas ; la carte ne montre que le libellé du bouton.

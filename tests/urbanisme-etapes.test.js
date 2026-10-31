@@ -95,4 +95,16 @@ test('boutons (31/10) : calculer et lire sans carte, écrire après la carte, ja
   assert.equal(c('Ok', 'Envoyer la demande au client'), 'jamais', 'le titre compte aussi');
   assert.equal(c('Calculer', '', 'reglages'), 'jamais', 'aucun bouton des Réglages');
   assert.equal(c('Ouvrir', '', 'telechargement'), 'jamais', 'un lien de téléchargement');
+  // Audit 0.415.0 : la fonction appelée compte aussi ; une carte de proposition n'est jamais décidée par CLAIRE.
+  const f = (l, fn, p) => app.classementBoutonAgent(l, '', p || '', fn);
+  assert.equal(f('Ouvrir le brouillon', "autoriserProposition('x')"), 'jamais');
+  assert.equal(f('Autoriser', '', 'proposition'), 'jamais');
+  assert.equal(f('Excel', "telechargerArtefactAssistant('a', 'xlsx')"), 'jamais');
+  assert.equal(f('contrat.xls', "ouvrirPieceJointeEmail('e', 'p')"), 'jamais');
+  assert.equal(f('plan.doc', "ouvrirFichierExplorateurNas('x')"), 'jamais');
+  assert.equal(f('Coller', 'collerRendezVousAgenda()'), 'carte');
+  assert.equal(f('Laisser dans Scan', ''), 'carte');
+  assert.equal(f('+ Personne', ''), 'carte');
+  assert.equal(f('👥', "reagirMessageAssistant('m', '👥')"), 'carte');
+  assert.equal(f('Calculer', 'calculerQuotites()'), 'libre');
 });
