@@ -151,7 +151,12 @@ test('fonds reçus : vérifier d’abord, « Confirmer » une fois tous les fond
   const pasVerifie = app.renderFondsRecus(fait);
   assert.match(pasVerifie, /<span>Vérifier<\/span>/);
   assert.match(pasVerifie, /validerFondsArrives\('d1'\)/);
+  // Carte « Arrivée des fonds » (31/10) : la validation à la main est dans le détail, derrière le bouton rond « … ».
+  assert.doesNotMatch(app.renderFondsDossier(fait), /Valider les fonds reçus/);
+  assert.match(app.renderFondsDossier(fait), /basculerDetailFonds\('d1'\)/);
+  app.detailsFondsOuverts.add('d1');
   assert.match(app.renderFondsDossier(fait), /Valider les fonds reçus/);
+  app.detailsFondsOuverts.delete('d1');
   // Onglet Fonds (étude 05/10) : les gestes d'argent n'apparaissent plus dans Échanges.
   assert.doesNotMatch(app.renderEchangesDossier(fait), /Valider les fonds reçus|'provision'|'rib'/);
 
@@ -828,7 +833,7 @@ test('onglet Fonds (retour de l’étude, 30/10) : l’arrivée des fonds dans s
   const partiel = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: dans(5), appelFonds: dans(-3), echeancesValidees: { appelFonds: true },
     fondsRecus: { attendu: 1000, total: 400, recus: [], fichiersLus: 1, verifieLe: new Date().toISOString(), depuis: dans(-10) } }));
   assert.match(partiel, /fonds-ton-orange/);
-  assert.match(partiel, /Il manque <b class="fonds-ton-texte">600,00\s€<\/b> · signature dans 5 jours/);
+  assert.match(partiel, /Il manque <b class="fonds-ton-texte">600,00\s€<\/b>/);
   const complet = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: dans(5), appelFonds: dans(-3), echeancesValidees: { appelFonds: true },
     fondsRecus: { attendu: 1000, total: 1000, recus: [], fichiersLus: 1, verifieLe: new Date().toISOString(), depuis: dans(-10) } }));
   assert.match(complet, /fonds-ton-vert/);

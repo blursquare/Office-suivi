@@ -11661,4 +11661,9 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .fonds-a-saisir { font-size: var(--texte-base); color: var(--muted); }
 .fonds-compta-texte { font-size: var(--texte-s); font-weight: 500; color: var(--ink-soft); }
 .fonds-compta-texte.dl-pret { color: var(--pret); }
+.fonds-arrivee-titre { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fonds-arrivee-quand { font-size: var(--texte-s); color: var(--muted); padding-left: 24px; }
+wa-button.fonds-plus { --wa-form-control-height: 32px; }
+wa-button.fonds-plus::part(base) { width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--fonds-ton) 10%, var(--paper-sunk)); }
+wa-button.fonds-plus.actif::part(base) { background: color-mix(in srgb, var(--fonds-ton) 22%, var(--paper-sunk)); }
 @media (max-width: 520px) { .fonds-montant > strong { font-size: var(--texte-3xl); } }

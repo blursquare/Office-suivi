@@ -684,20 +684,30 @@
     if (confirmee) message = `Tout est arrivé · confirmé ${succ ? 'aux héritiers' : 'au client'} le ${formatDateFr(confirmee)}`;
     else if (ton === 'vert') message = `Tout est arrivé · reste à prévenir ${succ ? 'les héritiers' : 'le client'}`;
     else if (b.etat === 'excedent') message = `<b class="fonds-ton-texte">${formaterPrixCentimes(b.ecart)}</b> de plus que l’attendu, à vérifier`;
-    else if (!f) message = `Lisez les reçus comptables déposés sur le NAS${quand ? ' · ' + quand : ''}`;
-    else if (b.attendu) message = `Il manque <b class="fonds-ton-texte">${formaterPrixCentimes(b.reste)}</b>${quand ? ' · ' + quand : ''}`;
-    else message = `Saisissez le montant attendu pour savoir ce qui manque${quand ? ' · ' + quand : ''}`;
+    else if (!f) message = 'Lisez les reçus comptables déposés sur le NAS';
+    else if (b.attendu) message = `Il manque <b class="fonds-ton-texte">${formaterPrixCentimes(b.reste)}</b>`;
+    else message = 'Saisissez le montant attendu pour savoir ce qui manque';
     const pct = ton === 'vert' ? 100 : b.attendu ? Math.min(100, Math.round((recu / b.attendu) * 100)) : 0;
-    const btn = `<wa-button ${bouton === verifier ? 'appearance="outlined"' : 'variant="brand"'} size="s" type="button" onclick="${bouton.onclick}" title="${escapeAttr(bouton.titre)}">${bouton.icone} ${bouton.libelle}</wa-button>`;
+    const btn = `<wa-button ${bouton === verifier ? 'appearance="outlined"' : 'variant="brand"'} size="s" pill type="button" onclick="${bouton.onclick}" title="${escapeAttr(bouton.titre)}">${bouton.icone} ${bouton.libelle}</wa-button>`;
+    // Le détail (versements, Authentic, noms cherchés, validation à la main) derrière le bouton rond « … » (maquette du 31/10 :
+    // « moins chargé ») ; ouvert ou fermé reste tel quel aux redessins de la fiche.
+    const ouvert = detailsFondsOuverts.has(d.id);
+    const plus = `<wa-button appearance="plain" type="button" class="bouton-icone fonds-plus${ouvert ? ' actif' : ''}" onclick="basculerDetailFonds('${escapeOnclickArg(d.id)}')" title="${ouvert ? 'Masquer le détail' : 'Versements, Authentic, valider à la main'}" aria-label="${ouvert ? 'Masquer le détail' : 'Voir le détail des fonds'}" aria-expanded="${ouvert}">${icone('ellipsis')}</wa-button>`;
     return `<div class="echanges-groupe fonds-arrivee fonds-ton-${ton}">
-        <div class="echanges-tete"><span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Arrivée des fonds</span></span>
+        <div class="echanges-tete"><span class="fonds-arrivee-titre"><span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Arrivée des fonds</span></span>${quand ? `<span class="fonds-arrivee-quand">${quand.charAt(0).toUpperCase() + quand.slice(1)}</span>` : ''}</span>
           <span class="fonds-etat-libelle"><span class="fonds-etat-point"></span>${etiquette}</span></div>
         <div class="fonds-montant">${f || b.manuel ? `<strong>${formaterPrixCentimes(recu)}</strong><span class="fonds-montant-sur">reçus sur ${attenduHtml}</span>` : `<span class="fonds-non-lu">Reçus non lus</span><span class="fonds-montant-sur">attendu : ${attenduHtml}</span>`}</div>
         <div class="fonds-barre fonds-barre-ton" role="img" aria-label="${pct} % des fonds attendus reçus"><span style="width:${pct}%"></span></div>
         <div class="fonds-arrivee-ligne"><span class="fonds-message">${message}</span>
-          <span class="fonds-arrivee-actions">${reverifierIcone}${btn}</span></div>
-        <div class="fonds-recus fonds-recus-detail">${versements}${compta}${pied}</div>
+          <span class="fonds-arrivee-actions">${reverifierIcone}${btn}${plus}</span></div>
+        ${ouvert ? `<div class="fonds-recus fonds-recus-detail">${versements}${compta}${pied}</div>` : ''}
       </div>`;
+  }
+
+  var detailsFondsOuverts = new Set();
+  function basculerDetailFonds(id) {
+    if (detailsFondsOuverts.has(id)) detailsFondsOuverts.delete(id); else detailsFondsOuverts.add(id);
+    render();
   }
 
   // « Valider les fonds reçus » (étude 06/10) : les fonds sont sur le compte de l'étude à la Caisse des Dépôts mais aucun reçu
