@@ -131,19 +131,23 @@ function demanderActesComedecDossier(dossierId) {
     const avant = JSON.stringify((d.authentic && d.authentic.etatsCivils) || {});
     afficherToast('CLAIRE relit le dossier dans Authentic pour voir les demandes déjà faites…', 'OK', null);
     const lu = await gesteAuthenticClaire('lire', { dossierId: d.id, auteur: utilisateurPoste || '', fiches: '' });
-    // La page relue arrive par la file des relevés : quelques secondes au plus pour qu'elle soit appliquée à la fiche.
-    if (lu && lu.ok) {
-      for (let k = 0; k < 12; k++) {
-        const x = dossiers.find(y => y.id === dossierId) || d;
-        if (JSON.stringify((x.authentic && x.authentic.etatsCivils) || {}) !== avant) break;
-        await new Promise(ok => setTimeout(ok, 1000));
-      }
+    // Sans relecture réussie, rien n'est demandé (relecture 31/10 : la seule garde contre un doublon est ce qu'Authentic a montré).
+    if (!lu || !lu.ok) { afficherToast(`Authentic n’a pas pu être relu (${(lu && lu.texte) || 'erreur'}) : rien n’est demandé.`, 'OK', null); return; }
+    // La page relue arrive par la file des relevés : attendue 30 s au plus (inchangée = rien de nouveau dans Authentic).
+    for (let k = 0; k < 30; k++) {
+      const x = dossiers.find(y => y.id === dossierId) || d;
+      if (JSON.stringify((x.authentic && x.authentic.etatsCivils) || {}) !== avant) break;
+      await new Promise(ok => setTimeout(ok, 1000));
     }
     const frais = dossiers.find(y => y.id === dossierId) || d;
     const apres = analyseComedecDossier(frais);
     render();
-    if (!apres.aDemander) { afficherToast(`Déjà demandé dans Authentic : rien à redemander (${apres.deja} acte${apres.deja > 1 ? 's' : ''}).`, 'OK', null); return; }
-    const r = await preparerFormaliteAuthentic(frais, 'comedec', { agent: false });
+    // Rien à demander seulement quand chaque partie a sa naissance ET son mariage déjà réglés : un mariage connu par la seule ligne d'Authentic
+    // (« épouse de ») est décidé par le serveur, ligne par ligne (comme preparerFormaliteAuthentic, relecture 0.396.11).
+    const toutRegle = partiesComedecDossier(frais).every(p => (p.naissance === false || p.dejaNaissance) && p.dejaMariage);
+    if (!apres.aDemander && toutRegle) { afficherToast(apres.deja ? `Déjà demandé dans Authentic : rien à redemander (${apres.deja} acte${apres.deja > 1 ? 's' : ''}).` : 'Rien à demander par Comedec pour ces parties.', 'OK', null); return; }
+    // Une demande déjà préparée par CLAIRE (un seul acte, 30/10) n'empêche pas de demander ce qui manque : seuls les actes absents d'Authentic partent.
+    const r = await preparerFormaliteAuthentic(frais, 'comedec', { agent: false, refaire: true });
     if (r && r.fait && /papier|APR/i.test(String(r.resultat || ''))) afficherToast('Une demande papier est à faire : voir « Courriers papier ».', 'OK', null);
     render();
   }, { bouton: 'Créer la demande', ton: 'valider' });
@@ -154,7 +158,7 @@ function htmlAnalyseComedec(d) {
   const a = analyseComedecDossier(d);
   if (!a.lignes.length) return { html: '<p class="hint">Aucune partie que l’étude représente : pas de demande Comedec.</p>', a };
   const pastille = (etat, acte) => etat === 'deja' ? `<span class="dot-label dl-success"><span class="dot"></span>${acte} déjà demandé</span>`
-    : etat === 'etranger' ? `<span class="dot-label dl-neutre" title="Née à l’étranger, nationalité étrangère : Comedec ne délivre pas cet acte"><span class="dot"></span>${acte} : hors Comedec</span>`
+    : etat === 'etranger' ? `<span class="dot-label dl-neutre" title="Né(e) à l’étranger, nationalité étrangère : Comedec ne délivre pas cet acte"><span class="dot"></span>${acte} : hors Comedec</span>`
     : etat === 'a_demander' ? `<span class="dot-label dl-pret"><span class="dot"></span>${acte} à demander</span>` : '';
   const lignes = a.lignes.map(l => `<li class="ec-personne"><span class="ec-nom">${escapeHtml(l.nom)}</span><span class="ec-etats">${pastille(l.naissance, 'Acte de naissance')} ${pastille(l.mariage, 'Acte de mariage')}</span></li>`).join('');
   return { html: `<ul class="ec-liste ec-analyse">${lignes}</ul>`, a };
@@ -177,7 +181,7 @@ function renderEtatCivilFiche(d) {
   const boutons = [];
   if (!succession && personnes.length) {
     const n = analyseComedecDossier(d).aDemander;
-    boutons.push(bouton('file-text', n ? `Actes d’état civil (${n})` : 'Actes d’état civil : déjà demandés', `demanderActesComedecDossier('${escapeOnclickArg(d.id)}')`, 'Une seule demande Comedec pour tous les actes qui manquent (naissance de chaque partie, mariage du couple), après relecture du dossier dans Authentic ; un acte déjà demandé n’est pas redemandé ; rien n’est envoyé'));
+    boutons.push(bouton('file-text', n ? `Actes d’état civil (${n})` : (analyseComedecDossier(d).deja ? 'Actes d’état civil : déjà demandés' : 'Actes d’état civil : vérifier'), `demanderActesComedecDossier('${escapeOnclickArg(d.id)}')`, 'Une seule demande Comedec pour tous les actes qui manquent (naissance de chaque partie, mariage du couple), après relecture du dossier dans Authentic ; un acte déjà demandé n’est pas redemandé ; rien n’est envoyé'));
   }
   if (!succession) boutons.push(bouton('archive', 'Lire l’EHF', `lireEhfDepuisFiche('${escapeOnclickArg(d.id)}')`, 'Relire l’état hypothécaire (état-réponse) déposé dans Authentic : inscriptions, pièces de mainlevée'));
   const papier = demandesPapierDossier(d);
@@ -222,7 +226,7 @@ function renderEtatCivilConstitution(d) {
   const n = analyse.a.aDemander;
   const comedec = `${analyse.html}<div class="ec-comedec">${n
     ? `<wa-button variant="brand" size="s" type="button" onclick="demanderActesComedecDossier('${escapeOnclickArg(d.id)}')">${icone('file-text')} Demander par Comedec (${n} acte${n > 1 ? 's' : ''})</wa-button>`
-    : (analyse.a.lignes.length ? `<span class="hint">Tout est déjà demandé dans Authentic.</span><wa-button appearance="outlined" size="s" type="button" onclick="demanderActesComedecDossier('${escapeOnclickArg(d.id)}')" title="Relire le dossier dans Authentic, puis demander ce qui manquerait">Vérifier dans Authentic</wa-button>` : '')}</div>`;
+    : (analyse.a.lignes.length ? `<span class="hint">${analyse.a.deja ? 'Tout est déjà demandé dans Authentic.' : 'Rien à demander par Comedec.'}</span><wa-button appearance="outlined" size="s" type="button" onclick="demanderActesComedecDossier('${escapeOnclickArg(d.id)}')" title="Relire le dossier dans Authentic, puis demander ce qui manquerait">Vérifier dans Authentic</wa-button>` : '')}</div>`;
   const lignesApr = papier.map(x => {
     const p = x.personne;
     const lib = x.type === 'mariage' ? 'Mariage' : 'Naissance';
